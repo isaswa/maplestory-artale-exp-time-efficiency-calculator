@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artale 經驗值時間效率計算機</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button id="themeToggle" class="theme-toggle" aria-label="切換主題">
+        <span class="theme-icon">☀️</span>
+    </button>
+
+    <div class="container">
+        <header>
+            <h1>楓之谷 Artale</h1>
+            <h2>經驗值時間效率計算機</h2>
+        </header>
+
+        <main>
+            <form id="calcForm" class="calc-form">
+                <div class="form-group">
+                    <label for="currentLevel">現在等級</label>
+                    <input
+                        type="number"
+                        id="currentLevel"
+                        min="1"
+                        max="200"
+                        required
+                        placeholder="輸入現在等級"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="currentExp">現在EXP</label>
+                    <input
+                        type="number"
+                        id="currentExp"
+                        min="0"
+                        required
+                        placeholder="輸入現在經驗值"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="targetLevel">目標等級</label>
+                    <input
+                        type="number"
+                        id="targetLevel"
+                        min="1"
+                        max="200"
+                        required
+                        placeholder="輸入目標等級"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="expEfficiency">現在每10分鐘經驗效率</label>
+                    <div class="exp-unit-toggle">
+                        <button type="button" id="unitWan" class="unit-btn active">單位:萬</button>
+                        <button type="button" id="unitRegular" class="unit-btn">單位:1</button>
+                    </div>
+                    <input
+                        type="number"
+                        id="expEfficiency"
+                        min="0"
+                        step="0.1"
+                        required
+                        placeholder="輸入每10分鐘獲得的經驗值"
+                    >
+                </div>
+
+                <button type="submit" class="btn-calculate">計算</button>
+            </form>
+
+            <div id="results" class="results hidden">
+                <h3>計算結果</h3>
+                <div class="result-item">
+                    <span class="result-label">起始等級:</span>
+                    <span id="startLevel" class="result-value">0</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">目標等級:</span>
+                    <span id="endLevel" class="result-value">0</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">所需總經驗值:</span>
+                    <span id="totalExp" class="result-value">0</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">預計所需時間:</span>
+                    <span id="timeNeeded" class="result-value">0</span>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>楓之谷 Artale 經驗值計算工具</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
