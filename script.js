@@ -220,7 +220,7 @@ const unitManBtn = document.getElementById('unitMan');
 const unitRegularBtn = document.getElementById('unitRegular');
 
 // Advanced options elements
-const advancedToggle = document.getElementById('advancedToggle');
+const advancedOptions = document.getElementById('advancedOptions');
 const advancedContent = document.getElementById('advancedContent');
 const expCouponCheckbox = document.getElementById('expCoupon');
 const couponOptions = document.getElementById('couponOptions');
@@ -229,16 +229,34 @@ const weatherOptions = document.getElementById('weatherOptions');
 const dailyGrindingInput = document.getElementById('dailyGrindingInput');
 const targetDaysInput = document.getElementById('targetDaysInput');
 
+// Track current mode ('simple' or 'advanced')
+let currentMode = 'simple'; // Default to 簡單模式
+
 // Track current unit mode ('man' or 'regular')
 let currentUnit = 'man'; // Default to 萬 (10,000)
 
 // Track current time unit for daily grinding ('hour' or 'minute')
 let currentTimeUnit = 'hour'; // Default to 小時
 
-// Toggle advanced options
-function toggleAdvancedOptions() {
-    advancedContent.classList.toggle('hidden');
-    advancedToggle.classList.toggle('active');
+// Toggle between simple and advanced modes
+function toggleMode(mode) {
+    currentMode = mode;
+
+    const modeSimpleBtn = document.getElementById('modeSimple');
+    const modeAdvancedBtn = document.getElementById('modeAdvanced');
+
+    if (mode === 'simple') {
+        modeSimpleBtn.classList.add('active');
+        modeAdvancedBtn.classList.remove('active');
+        advancedOptions.classList.add('hidden');
+    } else {
+        modeSimpleBtn.classList.remove('active');
+        modeAdvancedBtn.classList.add('active');
+        advancedOptions.classList.remove('hidden');
+    }
+
+    // Save mode preference to unified storage
+    saveToLocalStorage();
 }
 
 // Toggle event options
@@ -557,12 +575,20 @@ function calculateResults(e) {
     startLevelSpan.textContent = `${currentLevel} (${formatNumber(currentExp)} [${expPercentage.toFixed(2)}%])`;
     endLevelSpan.textContent = `${targetLevel}`;
     totalExpSpan.textContent = formatNumber(totalExpNeeded);
-    document.getElementById('regularBonus').textContent = `+${regularMultiplier}%`;
     timeNeededSpan.textContent = formatTime(totalTimeMinutes);
 
-    // Show/hide event breakdown with detailed phases
+    // Show/hide advanced result details based on mode
+    const regularBonusItem = document.getElementById('regularBonus').parentElement;
+    if (currentMode === 'simple') {
+        regularBonusItem.classList.add('hidden');
+    } else {
+        regularBonusItem.classList.remove('hidden');
+        document.getElementById('regularBonus').textContent = `+${regularMultiplier}%`;
+    }
+
+    // Show/hide event breakdown with detailed phases (only in advanced mode)
     const eventBreakdown = document.getElementById('eventTimeBreakdown');
-    if (hasEvents) {
+    if (currentMode === 'advanced' && hasEvents) {
         // Clear previous breakdown
         eventBreakdown.innerHTML = '';
 
@@ -595,13 +621,13 @@ function calculateResults(e) {
         eventBreakdown.classList.add('hidden');
     }
 
-    // Calculate grinding schedule if applicable
+    // Calculate grinding schedule if applicable (only in advanced mode)
     const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
     const scheduleResultDiv = document.getElementById('scheduleResult');
     const scheduleLabel = document.getElementById('scheduleLabel');
     const scheduleValue = document.getElementById('scheduleValue');
 
-    if (scheduleMode && scheduleMode.value === 'daily') {
+    if (currentMode === 'advanced' && scheduleMode && scheduleMode.value === 'daily') {
         const dailyTime = parseFloat(document.getElementById('dailyTime').value) || 0;
         if (dailyTime > 0) {
             // Convert to minutes based on current unit
@@ -616,7 +642,7 @@ function calculateResults(e) {
         } else {
             scheduleResultDiv.classList.add('hidden');
         }
-    } else if (scheduleMode && scheduleMode.value === 'target') {
+    } else if (currentMode === 'advanced' && scheduleMode && scheduleMode.value === 'target') {
         const targetDays = parseInt(document.getElementById('targetDays').value) || 0;
         if (targetDays > 0) {
             // Calculate minutes required per day
@@ -689,6 +715,7 @@ function saveToLocalStorage() {
     const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
 
     const formData = {
+        mode: currentMode,
         currentLevel: currentLevelInput.value,
         currentExp: currentExpInput.value,
         targetLevel: targetLevelInput.value,
@@ -721,6 +748,11 @@ function loadFromLocalStorage() {
     if (savedData) {
         try {
             const formData = JSON.parse(savedData);
+
+            // Mode
+            if (formData.mode !== undefined) {
+                toggleMode(formData.mode);
+            }
 
             // Basic inputs
             if (formData.currentLevel) currentLevelInput.value = formData.currentLevel;
@@ -825,9 +857,11 @@ themeToggle.addEventListener('click', toggleTheme);
 unitManBtn.addEventListener('click', () => toggleUnit('man'));
 unitRegularBtn.addEventListener('click', () => toggleUnit('regular'));
 
-// Advanced options event listeners
-advancedToggle.addEventListener('click', toggleAdvancedOptions);
+// Mode toggle event listeners
+document.getElementById('modeSimple').addEventListener('click', () => toggleMode('simple'));
+document.getElementById('modeAdvanced').addEventListener('click', () => toggleMode('advanced'));
 
+// Advanced options event listeners
 expCouponCheckbox.addEventListener('change', () => {
     toggleEventOptions(expCouponCheckbox, couponOptions);
 });
