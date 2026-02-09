@@ -159,6 +159,146 @@ header h2 {
     border-color: var(--button-bg);
 }
 
+.advanced-options {
+    margin: 20px 0;
+}
+
+.advanced-toggle {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 2px solid var(--input-border);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.advanced-toggle:hover {
+    border-color: var(--button-bg);
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.advanced-toggle.active .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.advanced-content {
+    margin-top: 0;
+    padding: 0;
+    background-color: var(--result-bg);
+    border: none;
+    border-radius: 8px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease, border 0.3s ease;
+}
+
+.advanced-content:not(.hidden) {
+    max-height: 1000px;
+    margin-top: 12px;
+    padding: 16px;
+    border: 2px solid var(--input-border);
+}
+
+.advanced-section {
+    margin-bottom: 20px;
+}
+
+.advanced-section:last-child {
+    margin-bottom: 0;
+}
+
+.advanced-section h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-color);
+}
+
+.radio-group {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.radio-group-inline {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.radio-group-inline label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.play-mode-options {
+    padding-left: 20px;
+}
+
+.event-group {
+    margin-bottom: 16px;
+}
+
+.event-group:last-child {
+    margin-bottom: 0;
+}
+
+.event-options {
+    padding-left: 24px;
+    margin-top: 8px;
+}
+
+.input-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.small-input {
+    width: 60px;
+    padding: 4px 8px;
+    font-size: 14px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+.small-input:focus {
+    outline: none;
+    border-color: var(--button-bg);
+}
+
 .btn-calculate {
     padding: 14px 24px;
     font-size: 18px;
@@ -225,6 +365,29 @@ header h2 {
     font-weight: 700;
     color: var(--button-bg);
     flex: 1;
+}
+
+.result-value-secondary {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+    opacity: 0.8;
+    flex: 1;
+}
+
+.event-breakdown {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--input-border);
+}
+
+.event-breakdown .result-item {
+    padding: 8px 0;
+}
+
+.event-breakdown .result-label {
+    min-width: 260px;
+    padding-left: 8px;
 }
 
 footer {

@@ -212,14 +212,88 @@ const resultsDiv = document.getElementById('results');
 const startLevelSpan = document.getElementById('startLevel');
 const endLevelSpan = document.getElementById('endLevel');
 const totalExpSpan = document.getElementById('totalExp');
+const regularBonusSpan = document.getElementById('regularBonus');
 const timeNeededSpan = document.getElementById('timeNeeded');
 const themeToggle = document.getElementById('themeToggle');
 const themeIcon = document.querySelector('.theme-icon');
-const unitWanBtn = document.getElementById('unitWan');
+const unitManBtn = document.getElementById('unitMan');
 const unitRegularBtn = document.getElementById('unitRegular');
 
-// Track current unit mode ('wan' or 'regular')
-let currentUnit = 'wan'; // Default to 萬 (10,000)
+// Advanced options elements
+const advancedToggle = document.getElementById('advancedToggle');
+const advancedContent = document.getElementById('advancedContent');
+const expCouponCheckbox = document.getElementById('expCoupon');
+const couponOptions = document.getElementById('couponOptions');
+const weatherEventCheckbox = document.getElementById('weatherEvent');
+const weatherOptions = document.getElementById('weatherOptions');
+
+// Track current unit mode ('man' or 'regular')
+let currentUnit = 'man'; // Default to 萬 (10,000)
+
+// Toggle advanced options
+function toggleAdvancedOptions() {
+    advancedContent.classList.toggle('hidden');
+    advancedToggle.classList.toggle('active');
+}
+
+// Toggle event options
+function toggleEventOptions(checkbox, optionsDiv) {
+    if (checkbox.checked) {
+        optionsDiv.classList.remove('hidden');
+    } else {
+        optionsDiv.classList.add('hidden');
+    }
+}
+
+// Calculate regular EXP multiplier (always-on bonuses)
+function calculateRegularMultiplier() {
+    let multiplier = 0; // Base is 100%, we track additional %
+
+    // Holy Symbol (無/活7/死7)
+    const holySymbol = document.querySelector('input[name="holySymbol"]:checked');
+    if (holySymbol) {
+        if (holySymbol.value === 'alive') {
+            multiplier += 50; // 活7 +50%
+        } else if (holySymbol.value === 'dead') {
+            multiplier += 25; // 死7 +25%
+        }
+        // 'none' adds 0%
+    }
+
+    // Taunt buff
+    if (document.getElementById('tauntBuff').checked) {
+        multiplier += 30; // 挑釁 +30%
+    }
+
+    return multiplier;
+}
+
+// Calculate event EXP multiplier
+function calculateEventMultiplier() {
+    let multiplier = 0;
+
+    // EXP Coupon
+    if (document.getElementById('expCoupon').checked) {
+        const couponType = document.querySelector('input[name="couponType"]:checked').value;
+        if (couponType === '2x') {
+            multiplier += 100; // +100%
+        } else if (couponType === '3x') {
+            multiplier += 200; // +200%
+        }
+    }
+
+    // Weather Event
+    if (document.getElementById('weatherEvent').checked) {
+        const weatherType = document.querySelector('input[name="weatherType"]:checked').value;
+        if (weatherType === '2x') {
+            multiplier += 100; // +100%
+        } else if (weatherType === '3x') {
+            multiplier += 200; // +200%
+        }
+    }
+
+    return multiplier;
+}
 
 // Calculate total exp needed
 function calculateExpNeeded(currentLevel, currentExp, targetLevel) {
@@ -257,6 +331,38 @@ function formatTime(minutes) {
     } else {
         return `${mins} 分鐘`;
     }
+}
+
+// Get coupon label
+function getCouponLabel(multiplier) {
+    if (multiplier === 100) return '2x加倍券';
+    if (multiplier === 200) return '3x加倍券';
+    return '加倍券';
+}
+
+// Get weather label
+function getWeatherLabel(multiplier) {
+    if (multiplier === 100) return '2x氣場';
+    if (multiplier === 200) return '3x氣場';
+    return '氣場';
+}
+
+// Add breakdown item to event breakdown display
+function addBreakdownItem(container, label, multiplier, timeMinutes) {
+    const div = document.createElement('div');
+    div.className = 'result-item';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'result-label';
+    labelSpan.textContent = `└ ${label}${multiplier > 0 ? ` (+${multiplier}%)` : ''}:`;
+
+    const valueSpan = document.createElement('span');
+    valueSpan.className = 'result-value-secondary';
+    valueSpan.textContent = formatTime(timeMinutes);
+
+    div.appendChild(labelSpan);
+    div.appendChild(valueSpan);
+    container.appendChild(div);
 }
 
 // Calculate and display results
@@ -320,11 +426,108 @@ function calculateResults(e) {
 
     // Convert exp efficiency based on current unit
     // If unit is 萬, multiply by 10,000
-    const actualExpEfficiency = currentUnit === 'wan' ? expEfficiency * 10000 : expEfficiency;
+    // Note: This input already includes regular buffs (Holy Symbol, Taunt, etc.)
+    const baseExpEfficiency = currentUnit === 'man' ? expEfficiency * 10000 : expEfficiency;
 
-    // Calculate time needed in minutes
-    // expEfficiency is per 10 minutes
-    const timeNeededMinutes = (totalExpNeeded / actualExpEfficiency) * 10;
+    // Calculate regular multiplier
+    const regularMultiplier = calculateRegularMultiplier(); // For display only
+
+    // The input already includes regular buffs, so we use it directly
+    const regularExpPerTenMin = baseExpEfficiency;
+
+    // Get event details
+    const hasCoupon = document.getElementById('expCoupon').checked;
+    const hasWeather = document.getElementById('weatherEvent').checked;
+
+    let couponMinutes = 0;
+    let weatherMinutes = 0;
+    let couponMultiplier = 0;
+    let weatherMultiplier = 0;
+
+    if (hasCoupon) {
+        const couponCount = parseInt(document.getElementById('couponCount').value);
+        // Each coupon = 30 minutes, -1 = infinite
+        couponMinutes = couponCount === -1 ? Infinity : couponCount * 30;
+        const couponType = document.querySelector('input[name="couponType"]:checked').value;
+        couponMultiplier = couponType === '2x' ? 100 : 200;
+    }
+
+    if (hasWeather) {
+        const weatherTimes = parseInt(document.getElementById('weatherTimes').value);
+        weatherMinutes = weatherTimes * 30;
+        const weatherType = document.querySelector('input[name="weatherType"]:checked').value;
+        weatherMultiplier = weatherType === '2x' ? 100 : 200;
+    }
+
+    // Calculate EXP rates for different phases
+    // Formula: measuredRate * (100 + R + E) / (100 + R)
+    const bothActiveRate = baseExpEfficiency * (100 + regularMultiplier + couponMultiplier + weatherMultiplier) / (100 + regularMultiplier);
+    const couponOnlyRate = baseExpEfficiency * (100 + regularMultiplier + couponMultiplier) / (100 + regularMultiplier);
+    const weatherOnlyRate = baseExpEfficiency * (100 + regularMultiplier + weatherMultiplier) / (100 + regularMultiplier);
+
+    // Calculate time distribution across phases
+    let remainingExp = totalExpNeeded;
+    let timeBreakdown = {
+        bothActive: 0,
+        couponOnly: 0,
+        weatherOnly: 0,
+        noEvents: 0
+    };
+
+    // Phase 1: Both coupon and weather active
+    if (hasCoupon && hasWeather && remainingExp > 0) {
+        const bothActiveDuration = Math.min(couponMinutes, weatherMinutes);
+        const expPerMinute = bothActiveRate / 10;
+        const expInPhase = expPerMinute * bothActiveDuration;
+
+        if (expInPhase >= remainingExp) {
+            timeBreakdown.bothActive = remainingExp / expPerMinute;
+            remainingExp = 0;
+        } else {
+            timeBreakdown.bothActive = bothActiveDuration;
+            remainingExp -= expInPhase;
+        }
+    }
+
+    // Phase 2: Coupon only (if coupon lasts longer than weather)
+    if (hasCoupon && remainingExp > 0) {
+        const couponOnlyDuration = hasWeather ? Math.max(0, couponMinutes - weatherMinutes) : couponMinutes;
+        const expPerMinute = couponOnlyRate / 10;
+        const expInPhase = expPerMinute * couponOnlyDuration;
+
+        if (expInPhase >= remainingExp) {
+            timeBreakdown.couponOnly = remainingExp / expPerMinute;
+            remainingExp = 0;
+        } else {
+            timeBreakdown.couponOnly = couponOnlyDuration;
+            remainingExp -= expInPhase;
+        }
+    }
+
+    // Phase 3: Weather only (if weather lasts longer than coupon)
+    if (hasWeather && remainingExp > 0) {
+        const weatherOnlyDuration = hasCoupon ? Math.max(0, weatherMinutes - couponMinutes) : weatherMinutes;
+        const expPerMinute = weatherOnlyRate / 10;
+        const expInPhase = expPerMinute * weatherOnlyDuration;
+
+        if (expInPhase >= remainingExp) {
+            timeBreakdown.weatherOnly = remainingExp / expPerMinute;
+            remainingExp = 0;
+        } else {
+            timeBreakdown.weatherOnly = weatherOnlyDuration;
+            remainingExp -= expInPhase;
+        }
+    }
+
+    // Phase 4: No events (regular grinding)
+    if (remainingExp > 0) {
+        const expPerMinute = regularExpPerTenMin / 10;
+        timeBreakdown.noEvents = remainingExp / expPerMinute;
+    }
+
+    // Calculate total time
+    const totalTimeMinutes = timeBreakdown.bothActive + timeBreakdown.couponOnly + timeBreakdown.weatherOnly + timeBreakdown.noEvents;
+    const hasEvents = hasCoupon || hasWeather;
 
     // Calculate percentage of current level progress
     let expPercentage = 0;
@@ -337,7 +540,44 @@ function calculateResults(e) {
     startLevelSpan.textContent = `${currentLevel} (${formatNumber(currentExp)} [${expPercentage.toFixed(2)}%])`;
     endLevelSpan.textContent = `${targetLevel}`;
     totalExpSpan.textContent = formatNumber(totalExpNeeded);
-    timeNeededSpan.textContent = formatTime(timeNeededMinutes);
+    document.getElementById('regularBonus').textContent = `+${regularMultiplier}%`;
+    timeNeededSpan.textContent = formatTime(totalTimeMinutes);
+
+    // Show/hide event breakdown with detailed phases
+    const eventBreakdown = document.getElementById('eventTimeBreakdown');
+    if (hasEvents) {
+        // Clear previous breakdown
+        eventBreakdown.innerHTML = '';
+
+        // Phase 1: Both active
+        if (timeBreakdown.bothActive > 0) {
+            const bothMultiplier = couponMultiplier + weatherMultiplier;
+            const label = getCouponLabel(couponMultiplier) + '+' + getWeatherLabel(weatherMultiplier);
+            addBreakdownItem(eventBreakdown, label, bothMultiplier, timeBreakdown.bothActive);
+        }
+
+        // Phase 2: Coupon only
+        if (timeBreakdown.couponOnly > 0) {
+            const label = getCouponLabel(couponMultiplier);
+            addBreakdownItem(eventBreakdown, label, couponMultiplier, timeBreakdown.couponOnly);
+        }
+
+        // Phase 3: Weather only
+        if (timeBreakdown.weatherOnly > 0) {
+            const label = getWeatherLabel(weatherMultiplier);
+            addBreakdownItem(eventBreakdown, label, weatherMultiplier, timeBreakdown.weatherOnly);
+        }
+
+        // Phase 4: No events
+        if (timeBreakdown.noEvents > 0) {
+            addBreakdownItem(eventBreakdown, '活動結束後', 0, timeBreakdown.noEvents);
+        }
+
+        eventBreakdown.classList.remove('hidden');
+    } else {
+        eventBreakdown.classList.add('hidden');
+    }
+
     resultsDiv.classList.remove('hidden');
 
     // Save to localStorage
@@ -348,12 +588,12 @@ function calculateResults(e) {
 function toggleUnit(unit) {
     currentUnit = unit;
 
-    if (unit === 'wan') {
-        unitWanBtn.classList.add('active');
+    if (unit === 'man') {
+        unitManBtn.classList.add('active');
         unitRegularBtn.classList.remove('active');
         expEfficiencyInput.placeholder = '輸入每10分鐘獲得的經驗值 (萬)';
     } else {
-        unitWanBtn.classList.remove('active');
+        unitManBtn.classList.remove('active');
         unitRegularBtn.classList.add('active');
         expEfficiencyInput.placeholder = '輸入每10分鐘獲得的經驗值';
     }
@@ -364,12 +604,31 @@ function toggleUnit(unit) {
 
 // Save form values to localStorage
 function saveToLocalStorage() {
+    // Get Holy Symbol value
+    const holySymbol = document.querySelector('input[name="holySymbol"]:checked');
+
+    // Get coupon type value
+    const couponType = document.querySelector('input[name="couponType"]:checked');
+
+    // Get weather type value
+    const weatherType = document.querySelector('input[name="weatherType"]:checked');
+
     const formData = {
         currentLevel: currentLevelInput.value,
         currentExp: currentExpInput.value,
         targetLevel: targetLevelInput.value,
         expEfficiency: expEfficiencyInput.value,
-        unit: currentUnit
+        unit: currentUnit,
+        // Advanced options - regular buffs
+        holySymbol: holySymbol ? holySymbol.value : 'none',
+        tauntBuff: document.getElementById('tauntBuff').checked,
+        // Advanced options - events
+        expCoupon: document.getElementById('expCoupon').checked,
+        couponType: couponType ? couponType.value : '2x',
+        couponCount: document.getElementById('couponCount').value,
+        weatherEvent: document.getElementById('weatherEvent').checked,
+        weatherType: weatherType ? weatherType.value : '2x',
+        weatherTimes: document.getElementById('weatherTimes').value
     };
 
     localStorage.setItem('artaleCalcData', JSON.stringify(formData));
@@ -383,11 +642,53 @@ function loadFromLocalStorage() {
         try {
             const formData = JSON.parse(savedData);
 
+            // Basic inputs
             if (formData.currentLevel) currentLevelInput.value = formData.currentLevel;
             if (formData.currentExp) currentExpInput.value = formData.currentExp;
             if (formData.targetLevel) targetLevelInput.value = formData.targetLevel;
             if (formData.expEfficiency) expEfficiencyInput.value = formData.expEfficiency;
             if (formData.unit) toggleUnit(formData.unit);
+
+            // Advanced options - regular buffs
+            if (formData.holySymbol !== undefined) {
+                const holySymbolRadio = document.querySelector(`input[name="holySymbol"][value="${formData.holySymbol}"]`);
+                if (holySymbolRadio) holySymbolRadio.checked = true;
+            }
+
+            if (formData.tauntBuff !== undefined) {
+                document.getElementById('tauntBuff').checked = formData.tauntBuff;
+            }
+
+            // Advanced options - events
+            if (formData.expCoupon !== undefined) {
+                const expCouponCheckbox = document.getElementById('expCoupon');
+                expCouponCheckbox.checked = formData.expCoupon;
+                toggleEventOptions(expCouponCheckbox, couponOptions);
+            }
+
+            if (formData.couponType !== undefined) {
+                const couponTypeRadio = document.querySelector(`input[name="couponType"][value="${formData.couponType}"]`);
+                if (couponTypeRadio) couponTypeRadio.checked = true;
+            }
+
+            if (formData.couponCount !== undefined) {
+                document.getElementById('couponCount').value = formData.couponCount;
+            }
+
+            if (formData.weatherEvent !== undefined) {
+                const weatherEventCheckbox = document.getElementById('weatherEvent');
+                weatherEventCheckbox.checked = formData.weatherEvent;
+                toggleEventOptions(weatherEventCheckbox, weatherOptions);
+            }
+
+            if (formData.weatherType !== undefined) {
+                const weatherTypeRadio = document.querySelector(`input[name="weatherType"][value="${formData.weatherType}"]`);
+                if (weatherTypeRadio) weatherTypeRadio.checked = true;
+            }
+
+            if (formData.weatherTimes !== undefined) {
+                document.getElementById('weatherTimes').value = formData.weatherTimes;
+            }
         } catch (error) {
             console.error('Error loading saved data:', error);
         }
@@ -420,8 +721,19 @@ function loadTheme() {
 // Event listeners
 form.addEventListener('submit', calculateResults);
 themeToggle.addEventListener('click', toggleTheme);
-unitWanBtn.addEventListener('click', () => toggleUnit('wan'));
+unitManBtn.addEventListener('click', () => toggleUnit('man'));
 unitRegularBtn.addEventListener('click', () => toggleUnit('regular'));
+
+// Advanced options event listeners
+advancedToggle.addEventListener('click', toggleAdvancedOptions);
+
+expCouponCheckbox.addEventListener('change', () => {
+    toggleEventOptions(expCouponCheckbox, couponOptions);
+});
+
+weatherEventCheckbox.addEventListener('change', () => {
+    toggleEventOptions(weatherEventCheckbox, weatherOptions);
+});
 
 // Clear custom validation messages when user types
 currentLevelInput.addEventListener('input', () => currentLevelInput.setCustomValidity(''));
@@ -429,13 +741,42 @@ currentExpInput.addEventListener('input', () => currentExpInput.setCustomValidit
 targetLevelInput.addEventListener('input', () => targetLevelInput.setCustomValidity(''));
 expEfficiencyInput.addEventListener('input', () => expEfficiencyInput.setCustomValidity(''));
 
+// Save to localStorage when advanced options change
+// Holy Symbol radio buttons
+document.querySelectorAll('input[name="holySymbol"]').forEach(radio => {
+    radio.addEventListener('change', saveToLocalStorage);
+});
+
+// Taunt checkbox
+document.getElementById('tauntBuff').addEventListener('change', saveToLocalStorage);
+
+// Coupon related
+expCouponCheckbox.addEventListener('change', saveToLocalStorage);
+document.querySelectorAll('input[name="couponType"]').forEach(radio => {
+    radio.addEventListener('change', saveToLocalStorage);
+});
+document.getElementById('couponCount').addEventListener('input', saveToLocalStorage);
+
+// Weather related
+weatherEventCheckbox.addEventListener('change', saveToLocalStorage);
+document.querySelectorAll('input[name="weatherType"]').forEach(radio => {
+    radio.addEventListener('change', saveToLocalStorage);
+});
+document.getElementById('weatherTimes').addEventListener('input', saveToLocalStorage);
+
+// Save to localStorage when basic inputs change
+currentLevelInput.addEventListener('input', saveToLocalStorage);
+currentExpInput.addEventListener('input', saveToLocalStorage);
+targetLevelInput.addEventListener('input', saveToLocalStorage);
+expEfficiencyInput.addEventListener('input', saveToLocalStorage);
+
 // Initialize
 function init() {
     loadFromLocalStorage();
     loadTheme();
 
     // Set default placeholder based on current unit
-    if (currentUnit === 'wan') {
+    if (currentUnit === 'man') {
         expEfficiencyInput.placeholder = '輸入每10分鐘獲得的經驗值 (萬)';
     }
 }

@@ -57,7 +57,7 @@
                 <div class="form-group">
                     <label for="expEfficiency">現在每10分鐘經驗效率</label>
                     <div class="exp-unit-toggle">
-                        <button type="button" id="unitWan" class="unit-btn active">單位:萬</button>
+                        <button type="button" id="unitMan" class="unit-btn active">單位:萬</button>
                         <button type="button" id="unitRegular" class="unit-btn">單位:1</button>
                     </div>
                     <input
@@ -68,6 +68,96 @@
                         required
                         placeholder="輸入每10分鐘獲得的經驗值"
                     >
+                </div>
+
+                <!-- Advanced Options -->
+                <div class="advanced-options">
+                    <button type="button" id="advancedToggle" class="advanced-toggle">
+                        <span>進階選項</span>
+                        <span class="toggle-icon">▼</span>
+                    </button>
+
+                    <div id="advancedContent" class="advanced-content hidden">
+                        <!-- Area 1: Always-on multipliers -->
+                        <div class="advanced-section">
+                            <h4>常駐經驗加成</h4>
+
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" name="holySymbol" value="none" checked>
+                                    無 (0%)
+                                </label>
+                                <label>
+                                    <input type="radio" name="holySymbol" value="alive">
+                                    活7 (+50%)
+                                </label>
+                                <label>
+                                    <input type="radio" name="holySymbol" value="dead">
+                                    死7 (+25%)
+                                </label>
+                            </div>
+
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="tauntBuff">
+                                挑釁 (+30%)
+                            </label>
+                        </div>
+
+                        <!-- Area 2: EXP Events -->
+                        <div class="advanced-section">
+                            <h4>限時經驗活動</h4>
+
+                            <!-- EXP Coupon -->
+                            <div class="event-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="expCoupon">
+                                    經驗加倍券
+                                </label>
+                                <div id="couponOptions" class="event-options hidden">
+                                    <div class="radio-group-inline">
+                                        <label>
+                                            <input type="radio" name="couponType" value="2x" checked>
+                                            2x (+100%)
+                                        </label>
+                                        <label>
+                                            <input type="radio" name="couponType" value="3x">
+                                            3x (+200%)
+                                        </label>
+                                    </div>
+                                    <label class="input-label">
+                                        剩餘幾張:
+                                        <input type="number" id="couponCount" value="0" class="small-input">
+                                        (加倍券1張=30分鐘)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Weather Event -->
+                            <div class="event-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="weatherEvent">
+                                    每日氣場15次
+                                </label>
+                                <div id="weatherOptions" class="event-options hidden">
+                                    <div class="radio-group-inline">
+                                        <label>
+                                            <input type="radio" name="weatherType" value="2x" checked>
+                                            2x (+100%)
+                                        </label>
+                                        <label>
+                                            <input type="radio" name="weatherType" value="3x">
+                                            3x (+200%)
+                                        </label>
+                                    </div>
+                                    <label class="input-label">
+                                        剩餘次數:
+                                        <input type="number" id="weatherTimes" min="0" value="0" class="small-input">
+                                        (每次2x15=30分鐘)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-calculate">計算</button>
@@ -88,8 +178,15 @@
                     <span id="totalExp" class="result-value">0</span>
                 </div>
                 <div class="result-item">
+                    <span class="result-label">常駐經驗加成:</span>
+                    <span id="regularBonus" class="result-value">0</span>
+                </div>
+                <div class="result-item">
                     <span class="result-label">預計所需時間:</span>
                     <span id="timeNeeded" class="result-value">0</span>
+                </div>
+                <div id="eventTimeBreakdown" class="event-breakdown hidden">
+                    <!-- Dynamic event phase breakdown will be inserted here -->
                 </div>
             </div>
         </main>
