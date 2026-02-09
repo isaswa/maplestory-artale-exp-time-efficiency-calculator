@@ -414,6 +414,7 @@ function calculateResults(e) {
 
         eventBreakdown.classList.remove('hidden');
     } else {
+        eventBreakdown.innerHTML = ''; // Clear old content to prevent stale data from showing
         eventBreakdown.classList.add('hidden');
     }
 
