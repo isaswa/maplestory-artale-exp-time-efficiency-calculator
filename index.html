@@ -157,6 +157,45 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Area 3: Grinding Schedule -->
+                        <div class="advanced-section">
+                            <h4>練功排程</h4>
+
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" name="scheduleMode" value="daily" checked>
+                                    每日練功
+                                </label>
+                                <label>
+                                    <input type="radio" name="scheduleMode" value="target">
+                                    目標天數
+                                </label>
+                            </div>
+
+                            <div id="scheduleInputs" class="schedule-inputs">
+                                <!-- Daily grinding option -->
+                                <div id="dailyGrindingInput" class="schedule-option">
+                                    <label class="input-label">每日練功時間:</label>
+                                    <div class="time-unit-toggle">
+                                        <button type="button" id="unitHour" class="unit-btn-small active">小時</button>
+                                        <button type="button" id="unitMinute" class="unit-btn-small">分鐘</button>
+                                    </div>
+                                    <input type="number" id="dailyTime" min="0" step="0.1" value="0" class="small-input">
+                                    <span class="input-hint">(輸入0代表不計算)</span>
+                                </div>
+
+                                <!-- Target days option -->
+                                <div id="targetDaysInput" class="schedule-option hidden">
+                                    <label class="input-label">
+                                        目標天數:
+                                        <input type="number" id="targetDays" min="0" value="0" class="small-input">
+                                        天
+                                        <span class="input-hint">(輸入0代表不計算)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -187,6 +226,10 @@
                 </div>
                 <div id="eventTimeBreakdown" class="event-breakdown hidden">
                     <!-- Dynamic event phase breakdown will be inserted here -->
+                </div>
+                <div id="scheduleResult" class="result-item hidden">
+                    <span class="result-label" id="scheduleLabel">練功排程:</span>
+                    <span id="scheduleValue" class="result-value">0</span>
                 </div>
             </div>
         </main>

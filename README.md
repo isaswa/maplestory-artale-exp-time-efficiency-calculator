@@ -28,14 +28,7 @@ MapleStory Artale is an MMORPG game. This calculator helps players plan their le
 
 ### Data Persistence
 
-The calculator automatically saves your inputs to browser localStorage, including:
-
-- Current level
-- Current EXP
-- Target level
-- EXP efficiency value
-- Selected unit (万/10k or regular)
-- Theme preference (dark / light)
+The calculator automatically saves your inputs to browser localStorage. No personal data is passed on the internet.
 
 ### Themes
 

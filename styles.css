@@ -277,11 +277,58 @@ header h2 {
     margin-top: 8px;
 }
 
+.schedule-inputs {
+    margin-top: 12px;
+}
+
+.schedule-option {
+    transition: all 0.3s ease;
+}
+
+.schedule-option.hidden {
+    display: none;
+}
+
+.time-unit-toggle {
+    display: flex;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.unit-btn-small {
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.unit-btn-small:hover {
+    border-color: var(--button-bg);
+}
+
+.unit-btn-small.active {
+    background-color: var(--button-bg);
+    color: white;
+    border-color: var(--button-bg);
+}
+
 .input-label {
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 14px;
+}
+
+.input-hint {
+    font-size: 12px;
+    color: var(--text-color);
+    opacity: 0.6;
+    margin-left: 6px;
 }
 
 .small-input {

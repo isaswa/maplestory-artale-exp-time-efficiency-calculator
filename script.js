@@ -226,9 +226,14 @@ const expCouponCheckbox = document.getElementById('expCoupon');
 const couponOptions = document.getElementById('couponOptions');
 const weatherEventCheckbox = document.getElementById('weatherEvent');
 const weatherOptions = document.getElementById('weatherOptions');
+const dailyGrindingInput = document.getElementById('dailyGrindingInput');
+const targetDaysInput = document.getElementById('targetDaysInput');
 
 // Track current unit mode ('man' or 'regular')
 let currentUnit = 'man'; // Default to 萬 (10,000)
+
+// Track current time unit for daily grinding ('hour' or 'minute')
+let currentTimeUnit = 'hour'; // Default to 小時
 
 // Toggle advanced options
 function toggleAdvancedOptions() {
@@ -242,6 +247,18 @@ function toggleEventOptions(checkbox, optionsDiv) {
         optionsDiv.classList.remove('hidden');
     } else {
         optionsDiv.classList.add('hidden');
+    }
+}
+
+// Toggle schedule mode inputs
+function toggleScheduleMode() {
+    const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
+    if (scheduleMode && scheduleMode.value === 'daily') {
+        dailyGrindingInput.classList.remove('hidden');
+        targetDaysInput.classList.add('hidden');
+    } else if (scheduleMode && scheduleMode.value === 'target') {
+        dailyGrindingInput.classList.add('hidden');
+        targetDaysInput.classList.remove('hidden');
     }
 }
 
@@ -578,6 +595,42 @@ function calculateResults(e) {
         eventBreakdown.classList.add('hidden');
     }
 
+    // Calculate grinding schedule if applicable
+    const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
+    const scheduleResultDiv = document.getElementById('scheduleResult');
+    const scheduleLabel = document.getElementById('scheduleLabel');
+    const scheduleValue = document.getElementById('scheduleValue');
+
+    if (scheduleMode && scheduleMode.value === 'daily') {
+        const dailyTime = parseFloat(document.getElementById('dailyTime').value) || 0;
+        if (dailyTime > 0) {
+            // Convert to minutes based on current unit
+            const dailyMinutes = currentTimeUnit === 'hour' ? dailyTime * 60 : dailyTime;
+
+            // Calculate days required
+            const daysRequired = Math.ceil(totalTimeMinutes / dailyMinutes);
+            const timeUnit = currentTimeUnit === 'hour' ? '小時' : '分鐘';
+            scheduleLabel.textContent = '所需天數:';
+            scheduleValue.textContent = `${daysRequired} 天 (每日 ${dailyTime} ${timeUnit})`;
+            scheduleResultDiv.classList.remove('hidden');
+        } else {
+            scheduleResultDiv.classList.add('hidden');
+        }
+    } else if (scheduleMode && scheduleMode.value === 'target') {
+        const targetDays = parseInt(document.getElementById('targetDays').value) || 0;
+        if (targetDays > 0) {
+            // Calculate minutes required per day
+            const minutesPerDay = Math.ceil(totalTimeMinutes / targetDays);
+            scheduleLabel.textContent = '每日所需時間:';
+            scheduleValue.textContent = `${minutesPerDay} 分鐘 (共 ${targetDays} 天)`;
+            scheduleResultDiv.classList.remove('hidden');
+        } else {
+            scheduleResultDiv.classList.add('hidden');
+        }
+    } else {
+        scheduleResultDiv.classList.add('hidden');
+    }
+
     resultsDiv.classList.remove('hidden');
 
     // Save to localStorage
@@ -602,6 +655,25 @@ function toggleUnit(unit) {
     localStorage.setItem('expUnit', unit);
 }
 
+// Toggle time unit mode for daily grinding
+function toggleTimeUnit(unit) {
+    currentTimeUnit = unit;
+
+    const unitHourBtn = document.getElementById('unitHour');
+    const unitMinuteBtn = document.getElementById('unitMinute');
+
+    if (unit === 'hour') {
+        unitHourBtn.classList.add('active');
+        unitMinuteBtn.classList.remove('active');
+    } else {
+        unitHourBtn.classList.remove('active');
+        unitMinuteBtn.classList.add('active');
+    }
+
+    // Save time unit preference
+    localStorage.setItem('timeUnit', unit);
+}
+
 // Save form values to localStorage
 function saveToLocalStorage() {
     // Get Holy Symbol value
@@ -612,6 +684,9 @@ function saveToLocalStorage() {
 
     // Get weather type value
     const weatherType = document.querySelector('input[name="weatherType"]:checked');
+
+    // Get schedule mode value
+    const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
 
     const formData = {
         currentLevel: currentLevelInput.value,
@@ -628,7 +703,12 @@ function saveToLocalStorage() {
         couponCount: document.getElementById('couponCount').value,
         weatherEvent: document.getElementById('weatherEvent').checked,
         weatherType: weatherType ? weatherType.value : '2x',
-        weatherTimes: document.getElementById('weatherTimes').value
+        weatherTimes: document.getElementById('weatherTimes').value,
+        // Advanced options - grinding schedule
+        scheduleMode: scheduleMode ? scheduleMode.value : 'daily',
+        dailyTime: document.getElementById('dailyTime').value,
+        timeUnit: currentTimeUnit,
+        targetDays: document.getElementById('targetDays').value
     };
 
     localStorage.setItem('artaleCalcData', JSON.stringify(formData));
@@ -688,6 +768,27 @@ function loadFromLocalStorage() {
 
             if (formData.weatherTimes !== undefined) {
                 document.getElementById('weatherTimes').value = formData.weatherTimes;
+            }
+
+            // Advanced options - grinding schedule
+            if (formData.scheduleMode !== undefined) {
+                const scheduleModeRadio = document.querySelector(`input[name="scheduleMode"][value="${formData.scheduleMode}"]`);
+                if (scheduleModeRadio) {
+                    scheduleModeRadio.checked = true;
+                    toggleScheduleMode();
+                }
+            }
+
+            if (formData.timeUnit !== undefined) {
+                toggleTimeUnit(formData.timeUnit);
+            }
+
+            if (formData.dailyTime !== undefined) {
+                document.getElementById('dailyTime').value = formData.dailyTime;
+            }
+
+            if (formData.targetDays !== undefined) {
+                document.getElementById('targetDays').value = formData.targetDays;
             }
         } catch (error) {
             console.error('Error loading saved data:', error);
@@ -763,6 +864,18 @@ document.querySelectorAll('input[name="weatherType"]').forEach(radio => {
     radio.addEventListener('change', saveToLocalStorage);
 });
 document.getElementById('weatherTimes').addEventListener('input', saveToLocalStorage);
+
+// Grinding schedule related
+document.querySelectorAll('input[name="scheduleMode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+        toggleScheduleMode();
+        saveToLocalStorage();
+    });
+});
+document.getElementById('unitHour').addEventListener('click', () => toggleTimeUnit('hour'));
+document.getElementById('unitMinute').addEventListener('click', () => toggleTimeUnit('minute'));
+document.getElementById('dailyTime').addEventListener('input', saveToLocalStorage);
+document.getElementById('targetDays').addEventListener('input', saveToLocalStorage);
 
 // Save to localStorage when basic inputs change
 currentLevelInput.addEventListener('input', saveToLocalStorage);
