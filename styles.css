@@ -75,6 +75,7 @@ body {
 }
 
 header {
+    position: relative;
     text-align: center;
     margin-bottom: 30px;
 }
@@ -90,6 +91,138 @@ header h2 {
     font-weight: normal;
     color: var(--text-color);
     opacity: 0.9;
+}
+
+.history-toggle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--input-bg);
+    border: 2px solid var(--input-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-color);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.history-toggle:hover {
+    border-color: var(--button-bg);
+    transform: translateY(-2px);
+}
+
+.history-icon {
+    display: block;
+}
+
+.history-text {
+    white-space: nowrap;
+}
+
+.history-panel {
+    background-color: var(--result-bg);
+    border: 2px solid var(--input-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.history-panel.hidden {
+    display: none;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.history-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.close-history {
+    background: none;
+    border: none;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-color);
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-history:hover {
+    opacity: 1;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 16px;
+}
+
+.history-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-clear-history {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-clear-history:hover {
+    background-color: #d32f2f;
+    transform: translateY(-1px);
+}
+
+.btn-clear-history:active {
+    transform: translateY(0);
+}
+
+.trash-icon {
+    display: block;
+    flex-shrink: 0;
+}
+
+.history-info {
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.history-info span {
+    font-weight: 600;
+    color: var(--button-bg);
 }
 
 .calc-form {
@@ -127,10 +260,49 @@ header h2 {
     border-color: var(--button-bg);
 }
 
+.current-status-group {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
 .form-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.form-group-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.form-group-inline label {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.form-group-inline input {
+    padding: 12px 16px;
+    font-size: 16px;
+    border: 2px solid var(--input-border);
+    border-radius: 8px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+.form-group-inline input:focus {
+    outline: none;
+    border-color: var(--button-bg);
+}
+
+.form-group-inline input::placeholder {
+    color: var(--text-color);
+    opacity: 0.5;
 }
 
 .form-group label {
@@ -157,6 +329,29 @@ header h2 {
 .form-group input::placeholder {
     color: var(--text-color);
     opacity: 0.5;
+}
+
+.btn-record {
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    height: 50px;
+}
+
+.btn-record:hover {
+    background-color: #1976D2;
+    transform: translateY(-2px);
+}
+
+.btn-record:active {
+    transform: translateY(0);
 }
 
 .exp-unit-toggle {
@@ -512,5 +707,29 @@ footer {
         width: 45px;
         height: 45px;
         font-size: 20px;
+    }
+
+    .history-toggle {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .history-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .current-status-group {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .btn-record {
+        width: 100%;
+        height: auto;
+    }
+
+    .chart-container {
+        height: 250px;
     }
 }

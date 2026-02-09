@@ -934,3 +934,379 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
+
+// ====================
+// Level History Tracking
+// ====================
+
+let levelHistory = [];
+let historyChart = null;
+
+// Load history from localStorage
+function loadHistory() {
+    const savedHistory = localStorage.getItem('artaleExpHistory');
+    if (savedHistory) {
+        try {
+            levelHistory = JSON.parse(savedHistory);
+        } catch (error) {
+            console.error('Error loading history:', error);
+            levelHistory = [];
+        }
+    }
+}
+
+// Save history to localStorage
+function saveHistory() {
+    localStorage.setItem('artaleExpHistory', JSON.stringify(levelHistory));
+}
+
+// Calculate total EXP from level and current exp
+function calculateTotalExp(level, currentExp) {
+    let totalExp = currentExp;
+
+    // Add all exp from previous levels
+    for (let i = 1; i < level; i++) {
+        if (expData[i]) {
+            totalExp += expData[i].exp;
+        }
+    }
+
+    return totalExp;
+}
+
+// Record current level and exp
+function recordLevelExp() {
+    const currentLevel = parseInt(currentLevelInput.value);
+    const currentExp = parseInt(currentExpInput.value);
+
+    // Validate inputs
+    if (!currentLevel || !currentExp || currentLevel < 1 || currentLevel > 200 || currentExp < 0) {
+        alert('請先輸入有效的等級和經驗值');
+        return;
+    }
+
+    // Validate current exp is less than exp needed to level up
+    if (currentLevel < 200) {
+        const expNeededForNextLevel = expData[currentLevel].exp;
+        if (currentExp >= expNeededForNextLevel) {
+            alert(`現在EXP必須小於 ${formatNumber(expNeededForNextLevel)} (等級 ${currentLevel + 1} 所需經驗值)`);
+            return;
+        }
+    }
+
+    const timestamp = Date.now();
+    const totalExp = calculateTotalExp(currentLevel, currentExp);
+
+    levelHistory.push({
+        timestamp: timestamp,
+        level: currentLevel,
+        exp: currentExp,
+        totalExp: totalExp
+    });
+
+    saveHistory();
+
+    // Show confirmation
+    const now = new Date(timestamp);
+    const timeStr = now.toLocaleString('zh-TW', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    alert(`已記錄!\n時間: ${timeStr}\n等級: ${currentLevel}\nEXP: ${formatNumber(currentExp)}`);
+
+    // Update record count
+    updateRecordCount();
+}
+
+// Update record count display
+function updateRecordCount() {
+    const recordCount = document.getElementById('recordCount');
+    if (recordCount) {
+        recordCount.textContent = levelHistory.length;
+    }
+}
+
+// Toggle history panel
+function toggleHistoryPanel() {
+    const historyPanel = document.getElementById('historyPanel');
+    const isHidden = historyPanel.classList.contains('hidden');
+
+    if (isHidden) {
+        historyPanel.classList.remove('hidden');
+        renderHistoryChart();
+    } else {
+        historyPanel.classList.add('hidden');
+    }
+}
+
+// Close history panel
+function closeHistoryPanel() {
+    const historyPanel = document.getElementById('historyPanel');
+    historyPanel.classList.add('hidden');
+}
+
+// Clear all history with confirmation
+function clearAllHistory() {
+    if (levelHistory.length === 0) {
+        alert('目前沒有記錄可以清除');
+        return;
+    }
+
+    const confirmation = prompt('此操作將清除所有記錄！\n請輸入 "delete" 以確認刪除：');
+
+    if (confirmation === 'delete') {
+        levelHistory = [];
+        saveHistory();
+        updateRecordCount();
+        renderHistoryChart();
+        alert('所有記錄已清除！');
+    } else if (confirmation !== null) {
+        alert('輸入不正確，取消刪除');
+    }
+}
+
+// Helper function to get total EXP at a specific level
+function getTotalExpAtLevel(level) {
+    let totalExp = 0;
+    for (let i = 1; i < level; i++) {
+        if (expData[i]) {
+            totalExp += expData[i].exp;
+        }
+    }
+    return totalExp;
+}
+
+// Helper function to convert total EXP to level + percentage
+function totalExpToLevelPercent(totalExp) {
+    let level = 1;
+    let remainingExp = totalExp;
+
+    // Find the level
+    for (let i = 1; i < 200; i++) {
+        const expForThisLevel = expData[i] ? expData[i].exp : 0;
+        if (remainingExp >= expForThisLevel) {
+            remainingExp -= expForThisLevel;
+            level = i + 1;
+        } else {
+            break;
+        }
+    }
+
+    // Calculate percentage
+    const expForCurrentLevel = expData[level] ? expData[level].exp : 1;
+    const percentage = (remainingExp / expForCurrentLevel) * 100;
+
+    return { level, percentage };
+}
+
+// Render history chart
+function renderHistoryChart() {
+    const canvas = document.getElementById('historyChart');
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart if it exists
+    if (historyChart) {
+        historyChart.destroy();
+    }
+
+    // If no data, show message
+    if (levelHistory.length === 0) {
+        // Get container dimensions
+        const container = canvas.parentElement;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        // Set canvas size to match container
+        canvas.width = containerWidth;
+        canvas.height = containerHeight;
+
+        // Clear canvas and show message
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '16px "Microsoft JhengHei", Arial, sans-serif';
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color');
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('尚無記錄資料', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    // Sort by timestamp
+    const sortedHistory = [...levelHistory].sort((a, b) => a.timestamp - b.timestamp);
+
+    // Prepare data
+    const labels = sortedHistory.map(record => {
+        const date = new Date(record.timestamp);
+        return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    });
+
+    const data = sortedHistory.map(record => record.totalExp);
+
+    // Find min and max levels from history
+    const minLevel = Math.min(...sortedHistory.map(r => r.level));
+    const currentLevel = parseInt(currentLevelInput.value) || sortedHistory[sortedHistory.length - 1].level;
+    const maxLevel = currentLevel + 1;
+
+    // Calculate min and max total EXP for Y-axis
+    const minTotalExp = getTotalExpAtLevel(minLevel);
+    const maxTotalExp = getTotalExpAtLevel(maxLevel);
+
+    // Generate Y-axis ticks
+    const levelRange = maxLevel - minLevel;
+    const yAxisTicks = [];
+
+    // Determine percentage markers based on level range
+    let percentageMarkers;
+    if (levelRange <= 5) {
+        percentageMarkers = [0, 20, 40, 60, 80]; // Show 20/40/60/80% for small ranges
+    } else {
+        percentageMarkers = [0, 50]; // Show only 50% for large ranges
+    }
+
+    // Generate ticks for each level and percentage
+    for (let level = minLevel; level <= maxLevel; level++) {
+        const levelTotalExp = getTotalExpAtLevel(level);
+
+        percentageMarkers.forEach(pct => {
+            if (level === maxLevel && pct > 0) return; // Don't show percentages for max level
+
+            const expForThisLevel = expData[level] ? expData[level].exp : 0;
+            const tickValue = levelTotalExp + (expForThisLevel * pct / 100);
+
+            yAxisTicks.push({
+                value: tickValue,
+                level: level,
+                percentage: pct
+            });
+        });
+    }
+
+    // Get theme colors
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+    const buttonColor = getComputedStyle(document.documentElement).getPropertyValue('--button-bg').trim();
+    const inputBorder = getComputedStyle(document.documentElement).getPropertyValue('--input-border').trim();
+
+    // Create chart
+    historyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '等級進度',
+                data: data,
+                borderColor: buttonColor,
+                backgroundColor: buttonColor + '33',
+                borderWidth: 2,
+                tension: 0.1,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textColor,
+                        font: {
+                            family: "'Microsoft JhengHei', Arial, sans-serif",
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const record = sortedHistory[context.dataIndex];
+                            const { percentage } = totalExpToLevelPercent(record.totalExp);
+                            return [
+                                `等級: ${record.level} (${percentage.toFixed(1)}%)`,
+                                `當前EXP: ${formatNumber(record.exp)}`,
+                                `總EXP: ${formatNumber(record.totalExp)}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: textColor,
+                        font: {
+                            family: "'Microsoft JhengHei', Arial, sans-serif",
+                            size: 10
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: {
+                        color: inputBorder
+                    }
+                },
+                y: {
+                    min: minTotalExp,
+                    max: maxTotalExp,
+                    ticks: {
+                        color: textColor,
+                        font: {
+                            family: "'Microsoft JhengHei', Arial, sans-serif",
+                            size: 10
+                        },
+                        callback: function(value) {
+                            // Find the closest tick definition
+                            const tick = yAxisTicks.find(t => Math.abs(t.value - value) < 1);
+                            if (tick) {
+                                if (tick.percentage === 0) {
+                                    return `Lv.${tick.level}`;
+                                } else {
+                                    return `${tick.percentage}%`;
+                                }
+                            }
+                            return '';
+                        },
+                        // Use our custom tick values
+                        stepSize: undefined,
+                        autoSkip: false,
+                        includeBounds: true
+                    },
+                    afterBuildTicks: function(axis) {
+                        // Override with our custom ticks
+                        axis.ticks = yAxisTicks.map(tick => ({
+                            value: tick.value,
+                            label: tick.percentage === 0 ? `Lv.${tick.level}` : `${tick.percentage}%`
+                        }));
+                    },
+                    grid: {
+                        color: function(context) {
+                            // Make level boundaries more prominent
+                            const tick = yAxisTicks.find(t => Math.abs(t.value - context.tick.value) < 1);
+                            if (tick && tick.percentage === 0) {
+                                return textColor + '40'; // More opaque for level boundaries
+                            }
+                            return inputBorder;
+                        },
+                        lineWidth: function(context) {
+                            const tick = yAxisTicks.find(t => Math.abs(t.value - context.tick.value) < 1);
+                            if (tick && tick.percentage === 0) {
+                                return 2; // Thicker line for level boundaries
+                            }
+                            return 1;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Event listeners for history feature
+document.getElementById('recordBtn').addEventListener('click', recordLevelExp);
+document.getElementById('historyToggle').addEventListener('click', toggleHistoryPanel);
+document.getElementById('closeHistory').addEventListener('click', closeHistoryPanel);
+document.getElementById('clearHistory').addEventListener('click', clearAllHistory);
+
+// Load history on init
+loadHistory();
+updateRecordCount();
