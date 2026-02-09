@@ -19,12 +19,12 @@ MapleStory Artale is an MMORPG game. This calculator helps players plan their le
 
 * Plan to add (wip):
 
-1. calculation on EXP 2x, 3x events or coupons
-2. grinding plan
-  - required time per day for N days
-  - fixed time per day, calculate required days to reach target
-3. save data with user's google drive on top of browser local storage
-4. dashboard to track leveling history of user
+  1. calculation on EXP 2x, 3x events or coupons
+  2. grinding plan
+    - required time per day for N days
+    - fixed time per day, calculate required days to reach target
+  3. save data with user's google drive on top of browser local storage
+  4. dashboard to track leveling history of user
 
 ### Data Persistence
 
