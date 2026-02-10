@@ -22,6 +22,8 @@ const expCouponCheckbox = document.getElementById('expCoupon');
 const couponOptions = document.getElementById('couponOptions');
 const weatherEventCheckbox = document.getElementById('weatherEvent');
 const weatherOptions = document.getElementById('weatherOptions');
+const customEventCheckbox = document.getElementById('customEvent');
+const customOptions = document.getElementById('customOptions');
 const dailyGrindingInput = document.getElementById('dailyGrindingInput');
 const targetDaysInput = document.getElementById('targetDaysInput');
 
@@ -269,11 +271,14 @@ function calculateResults(e) {
     // Get event details
     const hasCoupon = document.getElementById('expCoupon').checked;
     const hasWeather = document.getElementById('weatherEvent').checked;
+    const hasCustom = document.getElementById('customEvent').checked;
 
     let couponMinutes = 0;
     let weatherMinutes = 0;
+    let customMinutes = 0;
     let couponMultiplier = 0;
     let weatherMultiplier = 0;
+    let customMultiplier = 0;
 
     if (hasCoupon) {
         const couponCount = parseInt(document.getElementById('couponCount').value);
@@ -290,75 +295,77 @@ function calculateResults(e) {
         weatherMultiplier = weatherType === '2x' ? 100 : 200;
     }
 
-    // Calculate EXP rates for different phases
-    // Formula: measuredRate * (100 + R + E) / (100 + R)
-    const bothActiveRate = baseExpEfficiency * (100 + regularMultiplier + couponMultiplier + weatherMultiplier) / (100 + regularMultiplier);
-    const couponOnlyRate = baseExpEfficiency * (100 + regularMultiplier + couponMultiplier) / (100 + regularMultiplier);
-    const weatherOnlyRate = baseExpEfficiency * (100 + regularMultiplier + weatherMultiplier) / (100 + regularMultiplier);
+    if (hasCustom) {
+        const customDuration = parseInt(document.getElementById('customDuration').value);
+        customMinutes = customDuration === -1 ? Infinity : customDuration;
+        customMultiplier = parseInt(document.getElementById('customBonus').value);
+    }
 
-    // Calculate time distribution across phases
+    // Build list of active events with their durations and multipliers
+    const activeEvents = [];
+    if (hasCoupon) activeEvents.push({ name: 'coupon', duration: couponMinutes, multiplier: couponMultiplier });
+    if (hasWeather) activeEvents.push({ name: 'weather', duration: weatherMinutes, multiplier: weatherMultiplier });
+    if (hasCustom) activeEvents.push({ name: 'custom', duration: customMinutes, multiplier: customMultiplier });
+
+    // Calculate time distribution across event combinations
     let remainingExp = totalExpNeeded;
-    let timeBreakdown = {
-        bothActive: 0,
-        couponOnly: 0,
-        weatherOnly: 0,
-        noEvents: 0
-    };
+    let eventPhases = [];
 
-    // Phase 1: Both coupon and weather active
-    if (hasCoupon && hasWeather && remainingExp > 0) {
-        const bothActiveDuration = Math.min(couponMinutes, weatherMinutes);
-        const expPerMinute = bothActiveRate / 10;
-        const expInPhase = expPerMinute * bothActiveDuration;
+    // Generate all possible event combinations and calculate their phases
+    if (activeEvents.length > 0) {
+        let currentTime = 0;
+        let currentEvents = [...activeEvents];
 
-        if (expInPhase >= remainingExp) {
-            timeBreakdown.bothActive = remainingExp / expPerMinute;
-            remainingExp = 0;
-        } else {
-            timeBreakdown.bothActive = bothActiveDuration;
-            remainingExp -= expInPhase;
+        while (currentEvents.length > 0 && remainingExp > 0) {
+            // Calculate total multiplier for current active events
+            const totalEventMultiplier = currentEvents.reduce((sum, e) => sum + e.multiplier, 0);
+            const expRate = baseExpEfficiency * (100 + regularMultiplier + totalEventMultiplier) / (100 + regularMultiplier);
+            const expPerMinute = expRate / 10;
+
+            // Find the next event that will expire
+            const nextExpiration = Math.min(...currentEvents.map(e => e.duration));
+            const phaseDuration = nextExpiration - currentTime;
+
+            const expInPhase = expPerMinute * phaseDuration;
+
+            if (expInPhase >= remainingExp) {
+                // This phase completes the grinding
+                eventPhases.push({
+                    events: currentEvents.map(e => e.name),
+                    multiplier: totalEventMultiplier,
+                    duration: remainingExp / expPerMinute
+                });
+                remainingExp = 0;
+                break;
+            } else {
+                // Use full phase duration
+                eventPhases.push({
+                    events: currentEvents.map(e => e.name),
+                    multiplier: totalEventMultiplier,
+                    duration: phaseDuration
+                });
+                remainingExp -= expInPhase;
+                currentTime = nextExpiration;
+
+                // Remove expired events
+                currentEvents = currentEvents.filter(e => e.duration > currentTime);
+            }
         }
     }
 
-    // Phase 2: Coupon only (if coupon lasts longer than weather)
-    if (hasCoupon && remainingExp > 0) {
-        const couponOnlyDuration = hasWeather ? Math.max(0, couponMinutes - weatherMinutes) : couponMinutes;
-        const expPerMinute = couponOnlyRate / 10;
-        const expInPhase = expPerMinute * couponOnlyDuration;
-
-        if (expInPhase >= remainingExp) {
-            timeBreakdown.couponOnly = remainingExp / expPerMinute;
-            remainingExp = 0;
-        } else {
-            timeBreakdown.couponOnly = couponOnlyDuration;
-            remainingExp -= expInPhase;
-        }
-    }
-
-    // Phase 3: Weather only (if weather lasts longer than coupon)
-    if (hasWeather && remainingExp > 0) {
-        const weatherOnlyDuration = hasCoupon ? Math.max(0, weatherMinutes - couponMinutes) : weatherMinutes;
-        const expPerMinute = weatherOnlyRate / 10;
-        const expInPhase = expPerMinute * weatherOnlyDuration;
-
-        if (expInPhase >= remainingExp) {
-            timeBreakdown.weatherOnly = remainingExp / expPerMinute;
-            remainingExp = 0;
-        } else {
-            timeBreakdown.weatherOnly = weatherOnlyDuration;
-            remainingExp -= expInPhase;
-        }
-    }
-
-    // Phase 4: No events (regular grinding)
+    // Phase: No events (regular grinding)
     if (remainingExp > 0) {
         const expPerMinute = regularExpPerTenMin / 10;
-        timeBreakdown.noEvents = remainingExp / expPerMinute;
+        eventPhases.push({
+            events: [],
+            multiplier: 0,
+            duration: remainingExp / expPerMinute
+        });
     }
 
     // Calculate total time
-    const totalTimeMinutes = timeBreakdown.bothActive + timeBreakdown.couponOnly + timeBreakdown.weatherOnly + timeBreakdown.noEvents;
-    const hasEvents = hasCoupon || hasWeather;
+    const totalTimeMinutes = eventPhases.reduce((sum, phase) => sum + phase.duration, 0);
+    const hasEvents = hasCoupon || hasWeather || hasCustom;
 
     // Calculate percentage of current level progress
     let expPercentage = 0;
@@ -388,29 +395,23 @@ function calculateResults(e) {
         // Clear previous breakdown
         eventBreakdown.innerHTML = '';
 
-        // Phase 1: Both active
-        if (timeBreakdown.bothActive > 0) {
-            const bothMultiplier = couponMultiplier + weatherMultiplier;
-            const label = getCouponLabel(couponMultiplier) + '+' + getWeatherLabel(weatherMultiplier);
-            addBreakdownItem(eventBreakdown, label, bothMultiplier, timeBreakdown.bothActive);
-        }
-
-        // Phase 2: Coupon only
-        if (timeBreakdown.couponOnly > 0) {
-            const label = getCouponLabel(couponMultiplier);
-            addBreakdownItem(eventBreakdown, label, couponMultiplier, timeBreakdown.couponOnly);
-        }
-
-        // Phase 3: Weather only
-        if (timeBreakdown.weatherOnly > 0) {
-            const label = getWeatherLabel(weatherMultiplier);
-            addBreakdownItem(eventBreakdown, label, weatherMultiplier, timeBreakdown.weatherOnly);
-        }
-
-        // Phase 4: No events
-        if (timeBreakdown.noEvents > 0) {
-            addBreakdownItem(eventBreakdown, '活動結束後', 0, timeBreakdown.noEvents);
-        }
+        // Display each phase
+        eventPhases.forEach(phase => {
+            if (phase.events.length === 0) {
+                // No events active
+                addBreakdownItem(eventBreakdown, '活動結束後', 0, phase.duration);
+            } else {
+                // Build label from active events
+                const labels = phase.events.map(eventName => {
+                    if (eventName === 'coupon') return getCouponLabel(couponMultiplier);
+                    if (eventName === 'weather') return getWeatherLabel(weatherMultiplier);
+                    if (eventName === 'custom') return '自定義';
+                    return eventName;
+                });
+                const label = labels.join('+');
+                addBreakdownItem(eventBreakdown, label, phase.multiplier, phase.duration);
+            }
+        });
 
         eventBreakdown.classList.remove('hidden');
     } else {
@@ -528,6 +529,9 @@ function saveToLocalStorage() {
         weatherEvent: document.getElementById('weatherEvent').checked,
         weatherType: weatherType ? weatherType.value : '2x',
         weatherTimes: document.getElementById('weatherTimes').value,
+        customEvent: document.getElementById('customEvent').checked,
+        customBonus: document.getElementById('customBonus').value,
+        customDuration: document.getElementById('customDuration').value,
         // Advanced options - grinding schedule
         scheduleMode: scheduleMode ? scheduleMode.value : 'daily',
         dailyTime: document.getElementById('dailyTime').value,
@@ -599,6 +603,20 @@ function loadFromLocalStorage() {
                 document.getElementById('weatherTimes').value = formData.weatherTimes;
             }
 
+            if (formData.customEvent !== undefined) {
+                const customEventCheckbox = document.getElementById('customEvent');
+                customEventCheckbox.checked = formData.customEvent;
+                toggleEventOptions(customEventCheckbox, customOptions);
+            }
+
+            if (formData.customBonus !== undefined) {
+                document.getElementById('customBonus').value = formData.customBonus;
+            }
+
+            if (formData.customDuration !== undefined) {
+                document.getElementById('customDuration').value = formData.customDuration;
+            }
+
             // Advanced options - grinding schedule
             if (formData.scheduleMode !== undefined) {
                 const scheduleModeRadio = document.querySelector(`input[name="scheduleMode"][value="${formData.scheduleMode}"]`);
@@ -667,6 +685,10 @@ weatherEventCheckbox.addEventListener('change', () => {
     toggleEventOptions(weatherEventCheckbox, weatherOptions);
 });
 
+customEventCheckbox.addEventListener('change', () => {
+    toggleEventOptions(customEventCheckbox, customOptions);
+});
+
 // Clear custom validation messages when user types
 currentLevelInput.addEventListener('input', () => currentLevelInput.setCustomValidity(''));
 currentExpInput.addEventListener('input', () => currentExpInput.setCustomValidity(''));
@@ -695,6 +717,11 @@ document.querySelectorAll('input[name="weatherType"]').forEach(radio => {
     radio.addEventListener('change', saveToLocalStorage);
 });
 document.getElementById('weatherTimes').addEventListener('input', saveToLocalStorage);
+
+// Custom event related
+customEventCheckbox.addEventListener('change', saveToLocalStorage);
+document.getElementById('customBonus').addEventListener('input', saveToLocalStorage);
+document.getElementById('customDuration').addEventListener('input', saveToLocalStorage);
 
 // Grinding schedule related
 document.querySelectorAll('input[name="scheduleMode"]').forEach(radio => {
@@ -925,17 +952,46 @@ function renderHistoryChart() {
     // Sort by timestamp
     const sortedHistory = [...levelHistory].sort((a, b) => a.timestamp - b.timestamp);
 
-    // Prepare data
-    const labels = sortedHistory.map(record => {
-        const date = new Date(record.timestamp);
-        return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-    });
+    // Only show the latest 10 records on chart for readability (but keep all records in storage)
+    let displayHistory = sortedHistory.slice(-10);
 
-    const data = sortedHistory.map(record => record.totalExp);
+    // If only 1 record, duplicate it with a slight time offset to show a flat line
+    if (displayHistory.length === 1) {
+        const singleRecord = displayHistory[0];
+        // Create a synthetic earlier point (1 hour before) with the same exp
+        const syntheticRecord = {
+            timestamp: singleRecord.timestamp - (60 * 60 * 1000), // 1 hour earlier
+            level: singleRecord.level,
+            exp: singleRecord.exp,
+            totalExp: singleRecord.totalExp
+        };
+        displayHistory = [syntheticRecord, singleRecord];
+    }
 
-    // Find min and max levels from history
-    const minLevel = Math.min(...sortedHistory.map(r => r.level));
-    const currentLevel = parseInt(currentLevelInput.value) || sortedHistory[sortedHistory.length - 1].level;
+    // Determine if we should use time-based spacing (for >5 records) or uniform distribution
+    const useTimeScale = displayHistory.length > 5;
+
+    // Prepare data based on chart type
+    let labels, data;
+    if (useTimeScale) {
+        // Time-based: use timestamp for x-axis, totalExp for y-axis
+        data = displayHistory.map(record => ({
+            x: record.timestamp,
+            y: record.totalExp
+        }));
+        labels = null; // Not used in time scale
+    } else {
+        // Uniform distribution: use categorical labels
+        labels = displayHistory.map(record => {
+            const date = new Date(record.timestamp);
+            return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        });
+        data = displayHistory.map(record => record.totalExp);
+    }
+
+    // Find min and max levels from displayed history
+    const minLevel = Math.min(...displayHistory.map(r => r.level));
+    const currentLevel = parseInt(currentLevelInput.value) || displayHistory[displayHistory.length - 1].level;
     const maxLevel = currentLevel + 1;
 
     // Calculate min and max total EXP for Y-axis
@@ -977,6 +1033,46 @@ function renderHistoryChart() {
     const buttonColor = getComputedStyle(document.documentElement).getPropertyValue('--button-bg').trim();
     const inputBorder = getComputedStyle(document.documentElement).getPropertyValue('--input-border').trim();
 
+    // Prepare x-axis configuration based on scale type
+    const xAxisConfig = useTimeScale ? {
+        type: 'time',
+        time: {
+            unit: 'hour',
+            displayFormats: {
+                hour: 'MM/DD HH:mm',
+                day: 'MM/DD'
+            },
+            tooltipFormat: 'MM/DD HH:mm'
+        },
+        ticks: {
+            color: textColor,
+            font: {
+                family: "'Microsoft JhengHei', Arial, sans-serif",
+                size: 10
+            },
+            maxRotation: 45,
+            minRotation: 45,
+            autoSkip: true,
+            maxTicksLimit: 10
+        },
+        grid: {
+            color: inputBorder
+        }
+    } : {
+        ticks: {
+            color: textColor,
+            font: {
+                family: "'Microsoft JhengHei', Arial, sans-serif",
+                size: 10
+            },
+            maxRotation: 45,
+            minRotation: 45
+        },
+        grid: {
+            color: inputBorder
+        }
+    };
+
     // Create chart
     historyChart = new Chart(ctx, {
         type: 'line',
@@ -1009,7 +1105,13 @@ function renderHistoryChart() {
                 tooltip: {
                     callbacks: {
                         label: function (context) {
-                            const record = sortedHistory[context.dataIndex];
+                            // Handle both time-based and categorical data
+                            const record = useTimeScale
+                                ? displayHistory.find(r => r.timestamp === context.parsed.x)
+                                : displayHistory[context.dataIndex];
+
+                            if (!record) return '';
+
                             const { percentage } = totalExpToLevelPercent(record.totalExp);
                             return [
                                 `等級: ${record.level} (${percentage.toFixed(1)}%)`,
@@ -1021,20 +1123,7 @@ function renderHistoryChart() {
                 }
             },
             scales: {
-                x: {
-                    ticks: {
-                        color: textColor,
-                        font: {
-                            family: "'Microsoft JhengHei', Arial, sans-serif",
-                            size: 10
-                        },
-                        maxRotation: 45,
-                        minRotation: 45
-                    },
-                    grid: {
-                        color: inputBorder
-                    }
-                },
+                x: xAxisConfig,
                 y: {
                     min: minTotalExp,
                     max: maxTotalExp,

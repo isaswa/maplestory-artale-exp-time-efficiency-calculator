@@ -6,6 +6,7 @@
     <title>Artale 經驗值時間效率計算機</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
     <button id="themeToggle" class="theme-toggle" aria-label="切換主題">
@@ -195,6 +196,26 @@
                                         剩餘次數:
                                         <input type="number" id="weatherTimes" min="0" value="0" class="small-input">
                                         (每次2x15=30分鐘)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Custom Event -->
+                            <div class="event-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="customEvent">
+                                    自定義
+                                </label>
+                                <div id="customOptions" class="event-options hidden">
+                                    <label class="input-label">
+                                        加成:
+                                        <input type="number" id="customBonus" min="0" value="100" class="small-input">
+                                        (%)
+                                    </label>
+                                    <label class="input-label">
+                                        時間:
+                                        <input type="number" id="customDuration" value="0" class="small-input">
+                                        (分鐘, -1為無限制)
                                     </label>
                                 </div>
                             </div>
