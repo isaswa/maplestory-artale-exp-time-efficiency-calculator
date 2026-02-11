@@ -1,31 +1,11 @@
-// DOM elements
-const form = document.getElementById('calcForm');
-const currentLevelInput = document.getElementById('currentLevel');
-const currentExpInput = document.getElementById('currentExp');
-const targetLevelInput = document.getElementById('targetLevel');
-const expEfficiencyInput = document.getElementById('expEfficiency');
-const resultsDiv = document.getElementById('results');
-const startLevelSpan = document.getElementById('startLevel');
-const endLevelSpan = document.getElementById('endLevel');
-const totalExpSpan = document.getElementById('totalExp');
-const regularBonusSpan = document.getElementById('regularBonus');
-const timeNeededSpan = document.getElementById('timeNeeded');
-const themeToggle = document.getElementById('themeToggle');
-const themeIcon = document.querySelector('.theme-icon');
-const unitManBtn = document.getElementById('unitMan');
-const unitRegularBtn = document.getElementById('unitRegular');
-
-// Advanced options elements
-const advancedOptions = document.getElementById('advancedOptions');
-const advancedContent = document.getElementById('advancedContent');
-const expCouponCheckbox = document.getElementById('expCoupon');
-const couponOptions = document.getElementById('couponOptions');
-const weatherEventCheckbox = document.getElementById('weatherEvent');
-const weatherOptions = document.getElementById('weatherOptions');
-const customEventCheckbox = document.getElementById('customEvent');
-const customOptions = document.getElementById('customOptions');
-const dailyGrindingInput = document.getElementById('dailyGrindingInput');
-const targetDaysInput = document.getElementById('targetDaysInput');
+// DOM elements - declare but don't initialize yet
+let form, currentLevelInput, currentExpInput, targetLevelInput, expEfficiencyInput;
+let resultsDiv, startLevelSpan, endLevelSpan, totalExpSpan, regularBonusSpan, timeNeededSpan;
+let themeToggle, themeIcon, unitManBtn, unitRegularBtn;
+let advancedOptions, advancedContent;
+let expCouponCheckbox, couponOptions, weatherEventCheckbox, weatherOptions;
+let customEventCheckbox, customOptions;
+let dailyGrindingInput, targetDaysInput;
 
 // Track current mode ('simple' or 'advanced')
 let currentMode = 'simple'; // Default to 簡單模式
@@ -666,85 +646,137 @@ function loadTheme() {
     }
 }
 
-// Event listeners
-form.addEventListener('submit', calculateResults);
-themeToggle.addEventListener('click', toggleTheme);
-unitManBtn.addEventListener('click', () => toggleUnit('man'));
-unitRegularBtn.addEventListener('click', () => toggleUnit('regular'));
+// Initialize event listeners
+function initEventListeners() {
+    // Form submit and theme toggle
+    form.addEventListener('submit', calculateResults);
+    themeToggle.addEventListener('click', toggleTheme);
+    unitManBtn.addEventListener('click', () => toggleUnit('man'));
+    unitRegularBtn.addEventListener('click', () => toggleUnit('regular'));
 
-// Mode toggle event listeners
-document.getElementById('modeSimple').addEventListener('click', () => toggleMode('simple'));
-document.getElementById('modeAdvanced').addEventListener('click', () => toggleMode('advanced'));
+    // Mode toggle event listeners
+    document.getElementById('modeSimple').addEventListener('click', () => toggleMode('simple'));
+    document.getElementById('modeAdvanced').addEventListener('click', () => toggleMode('advanced'));
 
-// Advanced options event listeners
-expCouponCheckbox.addEventListener('change', () => {
-    toggleEventOptions(expCouponCheckbox, couponOptions);
-});
-
-weatherEventCheckbox.addEventListener('change', () => {
-    toggleEventOptions(weatherEventCheckbox, weatherOptions);
-});
-
-customEventCheckbox.addEventListener('change', () => {
-    toggleEventOptions(customEventCheckbox, customOptions);
-});
-
-// Clear custom validation messages when user types
-currentLevelInput.addEventListener('input', () => currentLevelInput.setCustomValidity(''));
-currentExpInput.addEventListener('input', () => currentExpInput.setCustomValidity(''));
-targetLevelInput.addEventListener('input', () => targetLevelInput.setCustomValidity(''));
-expEfficiencyInput.addEventListener('input', () => expEfficiencyInput.setCustomValidity(''));
-
-// Save to localStorage when advanced options change
-// Holy Symbol radio buttons
-document.querySelectorAll('input[name="holySymbol"]').forEach(radio => {
-    radio.addEventListener('change', saveToLocalStorage);
-});
-
-// Taunt checkbox
-document.getElementById('tauntBuff').addEventListener('change', saveToLocalStorage);
-
-// Coupon related
-expCouponCheckbox.addEventListener('change', saveToLocalStorage);
-document.querySelectorAll('input[name="couponType"]').forEach(radio => {
-    radio.addEventListener('change', saveToLocalStorage);
-});
-document.getElementById('couponCount').addEventListener('input', saveToLocalStorage);
-
-// Weather related
-weatherEventCheckbox.addEventListener('change', saveToLocalStorage);
-document.querySelectorAll('input[name="weatherType"]').forEach(radio => {
-    radio.addEventListener('change', saveToLocalStorage);
-});
-document.getElementById('weatherTimes').addEventListener('input', saveToLocalStorage);
-
-// Custom event related
-customEventCheckbox.addEventListener('change', saveToLocalStorage);
-document.getElementById('customBonus').addEventListener('input', saveToLocalStorage);
-document.getElementById('customDuration').addEventListener('input', saveToLocalStorage);
-
-// Grinding schedule related
-document.querySelectorAll('input[name="scheduleMode"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-        toggleScheduleMode();
-        saveToLocalStorage();
+    // Advanced options event listeners
+    expCouponCheckbox.addEventListener('change', () => {
+        toggleEventOptions(expCouponCheckbox, couponOptions);
     });
-});
-document.getElementById('unitHour').addEventListener('click', () => toggleTimeUnit('hour'));
-document.getElementById('unitMinute').addEventListener('click', () => toggleTimeUnit('minute'));
-document.getElementById('dailyTime').addEventListener('input', saveToLocalStorage);
-document.getElementById('targetDays').addEventListener('input', saveToLocalStorage);
 
-// Save to localStorage when basic inputs change
-currentLevelInput.addEventListener('input', saveToLocalStorage);
-currentExpInput.addEventListener('input', saveToLocalStorage);
-targetLevelInput.addEventListener('input', saveToLocalStorage);
-expEfficiencyInput.addEventListener('input', saveToLocalStorage);
+    weatherEventCheckbox.addEventListener('change', () => {
+        toggleEventOptions(weatherEventCheckbox, weatherOptions);
+    });
+
+    customEventCheckbox.addEventListener('change', () => {
+        toggleEventOptions(customEventCheckbox, customOptions);
+    });
+
+    // Clear custom validation messages when user types
+    currentLevelInput.addEventListener('input', () => currentLevelInput.setCustomValidity(''));
+    currentExpInput.addEventListener('input', () => currentExpInput.setCustomValidity(''));
+    targetLevelInput.addEventListener('input', () => targetLevelInput.setCustomValidity(''));
+    expEfficiencyInput.addEventListener('input', () => expEfficiencyInput.setCustomValidity(''));
+
+    // Save to localStorage when advanced options change
+    // Holy Symbol radio buttons
+    document.querySelectorAll('input[name="holySymbol"]').forEach(radio => {
+        radio.addEventListener('change', saveToLocalStorage);
+    });
+
+    // Taunt checkbox
+    document.getElementById('tauntBuff').addEventListener('change', saveToLocalStorage);
+
+    // Coupon related
+    expCouponCheckbox.addEventListener('change', saveToLocalStorage);
+    document.querySelectorAll('input[name="couponType"]').forEach(radio => {
+        radio.addEventListener('change', saveToLocalStorage);
+    });
+    document.getElementById('couponCount').addEventListener('input', saveToLocalStorage);
+
+    // Weather related
+    weatherEventCheckbox.addEventListener('change', saveToLocalStorage);
+    document.querySelectorAll('input[name="weatherType"]').forEach(radio => {
+        radio.addEventListener('change', saveToLocalStorage);
+    });
+    document.getElementById('weatherTimes').addEventListener('input', saveToLocalStorage);
+
+    // Custom event related
+    customEventCheckbox.addEventListener('change', saveToLocalStorage);
+    document.getElementById('customBonus').addEventListener('input', saveToLocalStorage);
+    document.getElementById('customDuration').addEventListener('input', saveToLocalStorage);
+
+    // Grinding schedule related
+    document.querySelectorAll('input[name="scheduleMode"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            toggleScheduleMode();
+            saveToLocalStorage();
+        });
+    });
+    document.getElementById('unitHour').addEventListener('click', () => toggleTimeUnit('hour'));
+    document.getElementById('unitMinute').addEventListener('click', () => toggleTimeUnit('minute'));
+    document.getElementById('dailyTime').addEventListener('input', saveToLocalStorage);
+    document.getElementById('targetDays').addEventListener('input', saveToLocalStorage);
+
+    // Save to localStorage when basic inputs change
+    currentLevelInput.addEventListener('input', saveToLocalStorage);
+    currentExpInput.addEventListener('input', saveToLocalStorage);
+    targetLevelInput.addEventListener('input', saveToLocalStorage);
+    expEfficiencyInput.addEventListener('input', saveToLocalStorage);
+
+    // History feature event listeners
+    document.getElementById('recordBtn').addEventListener('click', recordLevelExp);
+    document.getElementById('historyToggle').addEventListener('click', toggleHistoryPanel);
+    document.getElementById('closeHistory').addEventListener('click', closeHistoryPanel);
+    document.getElementById('clearHistory').addEventListener('click', clearAllHistory);
+}
+
+// Initialize DOM elements
+function initDOMElements() {
+    // Basic form elements
+    form = document.getElementById('calcForm');
+    currentLevelInput = document.getElementById('currentLevel');
+    currentExpInput = document.getElementById('currentExp');
+    targetLevelInput = document.getElementById('targetLevel');
+    expEfficiencyInput = document.getElementById('expEfficiency');
+    resultsDiv = document.getElementById('results');
+    startLevelSpan = document.getElementById('startLevel');
+    endLevelSpan = document.getElementById('endLevel');
+    totalExpSpan = document.getElementById('totalExp');
+    regularBonusSpan = document.getElementById('regularBonus');
+    timeNeededSpan = document.getElementById('timeNeeded');
+    themeToggle = document.getElementById('themeToggle');
+    themeIcon = document.querySelector('.theme-icon');
+    unitManBtn = document.getElementById('unitMan');
+    unitRegularBtn = document.getElementById('unitRegular');
+
+    // Advanced options elements
+    advancedOptions = document.getElementById('advancedOptions');
+    advancedContent = document.getElementById('advancedContent');
+    expCouponCheckbox = document.getElementById('expCoupon');
+    couponOptions = document.getElementById('couponOptions');
+    weatherEventCheckbox = document.getElementById('weatherEvent');
+    weatherOptions = document.getElementById('weatherOptions');
+    customEventCheckbox = document.getElementById('customEvent');
+    customOptions = document.getElementById('customOptions');
+    dailyGrindingInput = document.getElementById('dailyGrindingInput');
+    targetDaysInput = document.getElementById('targetDaysInput');
+}
 
 // Initialize
 function init() {
+    // Initialize DOM elements first
+    initDOMElements();
+
+    // Initialize event listeners
+    initEventListeners();
+
+    // Load saved data and theme
     loadFromLocalStorage();
     loadTheme();
+
+    // Load history
+    loadHistory();
+    updateRecordCount();
 
     // Set default placeholder based on current unit
     if (currentUnit === 'man') {
@@ -840,7 +872,35 @@ function recordLevelExp() {
 function updateRecordCount() {
     const recordCount = document.getElementById('recordCount');
     if (recordCount) {
-        recordCount.textContent = levelHistory.length;
+        const totalRecords = levelHistory.length;
+
+        // Check if we're in fallback mode (showing only last 10 instead of aggregating)
+        let shouldShowFallbackNote = false;
+
+        if (totalRecords > 10) {
+            const sortedHistory = [...levelHistory].sort((a, b) => a.timestamp - b.timestamp);
+            const firstDate = new Date(sortedHistory[0].timestamp);
+            const lastDate = new Date(sortedHistory[sortedHistory.length - 1].timestamp);
+            const daySpan = Math.floor((lastDate - firstDate) / (24 * 60 * 60 * 1000));
+
+            // Count distinct days with records
+            const daysWithRecords = new Set();
+            sortedHistory.forEach(record => {
+                const date = new Date(record.timestamp);
+                const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                daysWithRecords.add(dayKey);
+            });
+
+            // Show fallback note if NOT aggregating (i.e., showing last 10)
+            const shouldAggregate = daySpan > 5 && daysWithRecords.size > 5;
+            shouldShowFallbackNote = !shouldAggregate;
+        }
+
+        if (shouldShowFallbackNote) {
+            recordCount.textContent = `${totalRecords} 筆資料 (僅顯示最後10筆)`;
+        } else {
+            recordCount.textContent = `${totalRecords} 筆資料`;
+        }
     }
 }
 
@@ -952,8 +1012,50 @@ function renderHistoryChart() {
     // Sort by timestamp
     const sortedHistory = [...levelHistory].sort((a, b) => a.timestamp - b.timestamp);
 
-    // Only show the latest 10 records on chart for readability (but keep all records in storage)
-    let displayHistory = sortedHistory.slice(-10);
+    // Check if we should aggregate by day
+    let displayHistory;
+    let shouldAggregate = false;
+    let dateFormat = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+
+    if (sortedHistory.length > 0) {
+        // Calculate day span and number of distinct days
+        const firstDate = new Date(sortedHistory[0].timestamp);
+        const lastDate = new Date(sortedHistory[sortedHistory.length - 1].timestamp);
+        const daySpan = Math.floor((lastDate - firstDate) / (24 * 60 * 60 * 1000));
+
+        // Count distinct days with records
+        const daysWithRecords = new Set();
+        sortedHistory.forEach(record => {
+            const date = new Date(record.timestamp);
+            const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+            daysWithRecords.add(dayKey);
+        });
+
+        // Aggregate if span > 5 days AND has records in > 5 distinct days
+        shouldAggregate = daySpan > 5 && daysWithRecords.size > 5;
+
+        if (shouldAggregate) {
+            // Group by day and keep only the last record of each day
+            const dailyRecords = new Map();
+            sortedHistory.forEach(record => {
+                const date = new Date(record.timestamp);
+                const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                // Always keep the latest record for each day (overwrite previous)
+                dailyRecords.set(dayKey, record);
+            });
+
+            // Convert map to array and sort by timestamp
+            displayHistory = Array.from(dailyRecords.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+            // Use date-only format for x-axis
+            dateFormat = { year: 'numeric', month: '2-digit', day: '2-digit' };
+        } else {
+            // Show latest 10 records with time
+            displayHistory = sortedHistory.slice(-10);
+        }
+    } else {
+        displayHistory = sortedHistory;
+    }
 
     // If only 1 record, duplicate it with a slight time offset to show a flat line
     if (displayHistory.length === 1) {
@@ -971,7 +1073,7 @@ function renderHistoryChart() {
     // Use uniform distribution with categorical labels for all cases
     const labels = displayHistory.map(record => {
         const date = new Date(record.timestamp);
-        return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleDateString('zh-TW', dateFormat);
     });
     const data = displayHistory.map(record => record.totalExp);
 
@@ -1138,12 +1240,3 @@ function renderHistoryChart() {
     });
 }
 
-// Event listeners for history feature
-document.getElementById('recordBtn').addEventListener('click', recordLevelExp);
-document.getElementById('historyToggle').addEventListener('click', toggleHistoryPanel);
-document.getElementById('closeHistory').addEventListener('click', closeHistoryPanel);
-document.getElementById('clearHistory').addEventListener('click', clearAllHistory);
-
-// Load history on init
-loadHistory();
-updateRecordCount();
