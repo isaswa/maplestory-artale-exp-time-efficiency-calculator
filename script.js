@@ -968,26 +968,12 @@ function renderHistoryChart() {
         displayHistory = [syntheticRecord, singleRecord];
     }
 
-    // Determine if we should use time-based spacing (for >5 records) or uniform distribution
-    const useTimeScale = displayHistory.length > 5;
-
-    // Prepare data based on chart type
-    let labels, data;
-    if (useTimeScale) {
-        // Time-based: use timestamp for x-axis, totalExp for y-axis
-        data = displayHistory.map(record => ({
-            x: record.timestamp,
-            y: record.totalExp
-        }));
-        labels = null; // Not used in time scale
-    } else {
-        // Uniform distribution: use categorical labels
-        labels = displayHistory.map(record => {
-            const date = new Date(record.timestamp);
-            return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-        });
-        data = displayHistory.map(record => record.totalExp);
-    }
+    // Use uniform distribution with categorical labels for all cases
+    const labels = displayHistory.map(record => {
+        const date = new Date(record.timestamp);
+        return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    });
+    const data = displayHistory.map(record => record.totalExp);
 
     // Find min and max levels from displayed history
     const minLevel = Math.min(...displayHistory.map(r => r.level));
@@ -1007,7 +993,7 @@ function renderHistoryChart() {
     if (levelRange <= 5) {
         percentageMarkers = [0, 20, 40, 60, 80]; // Show 20/40/60/80% for small ranges
     } else {
-        percentageMarkers = [0, 50]; // Show only 50% for large ranges
+        percentageMarkers = [0]; // Show only level boundaries for large ranges
     }
 
     // Generate ticks for each level and percentage
@@ -1033,32 +1019,8 @@ function renderHistoryChart() {
     const buttonColor = getComputedStyle(document.documentElement).getPropertyValue('--button-bg').trim();
     const inputBorder = getComputedStyle(document.documentElement).getPropertyValue('--input-border').trim();
 
-    // Prepare x-axis configuration based on scale type
-    const xAxisConfig = useTimeScale ? {
-        type: 'time',
-        time: {
-            unit: 'hour',
-            displayFormats: {
-                hour: 'MM/DD HH:mm',
-                day: 'MM/DD'
-            },
-            tooltipFormat: 'MM/DD HH:mm'
-        },
-        ticks: {
-            color: textColor,
-            font: {
-                family: "'Microsoft JhengHei', Arial, sans-serif",
-                size: 10
-            },
-            maxRotation: 45,
-            minRotation: 45,
-            autoSkip: true,
-            maxTicksLimit: 10
-        },
-        grid: {
-            color: inputBorder
-        }
-    } : {
+    // X-axis configuration with uniform spacing
+    const xAxisConfig = {
         ticks: {
             color: textColor,
             font: {
@@ -1105,11 +1067,7 @@ function renderHistoryChart() {
                 tooltip: {
                     callbacks: {
                         label: function (context) {
-                            // Handle both time-based and categorical data
-                            const record = useTimeScale
-                                ? displayHistory.find(r => r.timestamp === context.parsed.x)
-                                : displayHistory[context.dataIndex];
-
+                            const record = displayHistory[context.dataIndex];
                             if (!record) return '';
 
                             const { percentage } = totalExpToLevelPercent(record.totalExp);
