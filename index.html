@@ -34,17 +34,54 @@
                 <canvas id="historyChart"></canvas>
             </div>
             <div class="history-footer">
-                <button id="clearHistory" class="btn-clear-history" aria-label="清空記錄">
-                    <svg class="trash-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
-                    清空記錄
-                </button>
+                <div class="history-actions">
+                    <button id="exportHistory" class="btn-history-action" aria-label="匯出記錄">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        匯出記錄
+                    </button>
+                    <button id="importHistory" class="btn-history-action" aria-label="匯入記錄">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        匯入記錄
+                    </button>
+                    <button id="clearHistory" class="btn-history-action btn-danger" aria-label="清空記錄">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        清空記錄
+                    </button>
+                </div>
                 <div class="history-info">
                     <p>已記錄 <span id="recordCount">0 筆資料</span></p>
+                </div>
+            </div>
+
+            <!-- Import Modal -->
+            <div id="importModal" class="import-modal hidden">
+                <div class="import-modal-content">
+                    <div class="import-modal-header">
+                        <h4>匯入記錄</h4>
+                        <button id="closeImportModal" class="close-import-modal" aria-label="關閉">&times;</button>
+                    </div>
+                    <div class="import-modal-body">
+                        <p class="import-instruction">請貼上從「匯出記錄」功能獲得的資料:</p>
+                        <textarea id="importTextArea" class="import-textarea" placeholder='[{"timestamp":1234567890,"level":50,"exp":12345,"totalExp":67890}, ...]'></textarea>
+                        <div id="importError" class="import-error hidden"></div>
+                    </div>
+                    <div class="import-modal-footer">
+                        <button id="confirmImport" class="btn-confirm-import">確認匯入</button>
+                        <button id="cancelImport" class="btn-cancel-import">取消</button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -728,6 +728,20 @@ function initEventListeners() {
     document.getElementById('historyToggle').addEventListener('click', toggleHistoryPanel);
     document.getElementById('closeHistory').addEventListener('click', closeHistoryPanel);
     document.getElementById('clearHistory').addEventListener('click', clearAllHistory);
+    document.getElementById('exportHistory').addEventListener('click', exportHistory);
+    document.getElementById('importHistory').addEventListener('click', showImportModal);
+
+    // Import modal event listeners
+    document.getElementById('closeImportModal').addEventListener('click', hideImportModal);
+    document.getElementById('cancelImport').addEventListener('click', hideImportModal);
+    document.getElementById('confirmImport').addEventListener('click', confirmImport);
+
+    // Close modal on background click
+    document.getElementById('importModal').addEventListener('click', (e) => {
+        if (e.target.id === 'importModal') {
+            hideImportModal();
+        }
+    });
 }
 
 // Initialize DOM elements
@@ -940,6 +954,150 @@ function clearAllHistory() {
         alert('所有記錄已清除！');
     } else if (confirmation !== null) {
         alert('輸入不正確，取消刪除');
+    }
+}
+
+// Export history as JSON file
+function exportHistory() {
+    if (levelHistory.length === 0) {
+        alert('目前沒有記錄可以匯出');
+        return;
+    }
+
+    // Create JSON string
+    const jsonString = JSON.stringify(levelHistory, null, 2);
+
+    // Create blob and download link
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    // Generate filename with current date
+    const date = new Date();
+    const filename = `artale-exp-records-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}.txt`;
+
+    link.href = url;
+    link.download = filename;
+    link.click();
+
+    // Clean up
+    URL.revokeObjectURL(url);
+}
+
+// Show import modal
+function showImportModal() {
+    const modal = document.getElementById('importModal');
+    const textarea = document.getElementById('importTextArea');
+    const errorDiv = document.getElementById('importError');
+
+    // Clear previous input and errors
+    textarea.value = '';
+    errorDiv.classList.add('hidden');
+    errorDiv.textContent = '';
+
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+// Hide import modal
+function hideImportModal() {
+    const modal = document.getElementById('importModal');
+    modal.classList.add('hidden');
+}
+
+// Validate and import history
+function confirmImport() {
+    const textarea = document.getElementById('importTextArea');
+    const errorDiv = document.getElementById('importError');
+    const jsonString = textarea.value.trim();
+
+    // Clear previous errors
+    errorDiv.classList.add('hidden');
+    errorDiv.textContent = '';
+
+    // Validate input
+    if (!jsonString) {
+        errorDiv.textContent = '請貼上 JSON 資料';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        // Parse JSON
+        const importedData = JSON.parse(jsonString);
+
+        // Validate data structure
+        if (!Array.isArray(importedData)) {
+            throw new Error('資料格式錯誤：必須是陣列');
+        }
+
+        if (importedData.length === 0) {
+            throw new Error('資料為空：沒有記錄可以匯入');
+        }
+
+        // Validate each record
+        for (let i = 0; i < importedData.length; i++) {
+            const record = importedData[i];
+
+            if (!record || typeof record !== 'object') {
+                throw new Error(`記錄 ${i + 1} 格式錯誤：必須是物件`);
+            }
+
+            if (typeof record.timestamp !== 'number' || record.timestamp <= 0) {
+                throw new Error(`記錄 ${i + 1} 的 timestamp 無效`);
+            }
+
+            if (typeof record.level !== 'number' || record.level < 1 || record.level > 200) {
+                throw new Error(`記錄 ${i + 1} 的 level 無效 (必須在 1-200 之間)`);
+            }
+
+            if (typeof record.exp !== 'number' || record.exp < 0) {
+                throw new Error(`記錄 ${i + 1} 的 exp 無效`);
+            }
+
+            if (typeof record.totalExp !== 'number' || record.totalExp < 0) {
+                throw new Error(`記錄 ${i + 1} 的 totalExp 無效`);
+            }
+        }
+
+        // Ask for confirmation if there are existing records
+        if (levelHistory.length > 0) {
+            const confirmReplace = confirm(
+                `目前已有 ${levelHistory.length} 筆記錄。\n` +
+                `匯入 ${importedData.length} 筆新記錄後，將會合併所有記錄。\n\n` +
+                `是否繼續？`
+            );
+
+            if (!confirmReplace) {
+                return;
+            }
+        }
+
+        // Merge imported data with existing data (avoid duplicates by timestamp)
+        const mergedData = [...levelHistory];
+        const existingTimestamps = new Set(levelHistory.map(r => r.timestamp));
+
+        importedData.forEach(record => {
+            if (!existingTimestamps.has(record.timestamp)) {
+                mergedData.push(record);
+            }
+        });
+
+        // Update history
+        levelHistory = mergedData;
+        saveHistory();
+        updateRecordCount();
+        renderHistoryChart();
+
+        // Show success message
+        alert(`成功匯入 ${importedData.length} 筆記錄！`);
+
+        // Close modal
+        hideImportModal();
+    } catch (error) {
+        // Show error message
+        errorDiv.textContent = `匯入失敗：${error.message}`;
+        errorDiv.classList.remove('hidden');
     }
 }
 
