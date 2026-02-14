@@ -16,6 +16,9 @@ let currentUnit = 'man'; // Default to 萬 (10,000)
 // Track current time unit for daily grinding ('hour' or 'minute')
 let currentTimeUnit = 'hour'; // Default to 小時
 
+// Flag to prevent auto-save during initial page load
+let isInitializing = true;
+
 // Toggle between simple and advanced modes
 function toggleMode(mode) {
     currentMode = mode;
@@ -480,6 +483,11 @@ function toggleTimeUnit(unit) {
 
 // Save form values to localStorage
 function saveToLocalStorage() {
+    // Don't save during initialization to prevent overwriting saved data with empty values
+    if (isInitializing) {
+        return;
+    }
+
     // Get Holy Symbol value
     const holySymbol = document.querySelector('input[name="holySymbol"]:checked');
 
@@ -796,6 +804,11 @@ function init() {
     if (currentUnit === 'man') {
         expEfficiencyInput.placeholder = '輸入每10分鐘獲得的經驗值 (萬)';
     }
+
+    // Enable auto-save after a short delay to ensure everything is loaded
+    setTimeout(() => {
+        isInitializing = false;
+    }, 100);
 }
 
 // Run initialization when DOM is ready
