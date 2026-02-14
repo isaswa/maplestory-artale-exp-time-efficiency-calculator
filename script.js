@@ -888,14 +888,12 @@ function updateRecordCount() {
     if (recordCount) {
         const totalRecords = levelHistory.length;
 
-        // Check if we're in fallback mode (showing only last 10 instead of aggregating)
-        let shouldShowFallbackNote = false;
+        // Check aggregation status to show appropriate note
+        let shouldShowLimitNote = false;
+        let noteText = '';
 
-        if (totalRecords > 10) {
+        if (totalRecords > 0) {
             const sortedHistory = [...levelHistory].sort((a, b) => a.timestamp - b.timestamp);
-            const firstDate = new Date(sortedHistory[0].timestamp);
-            const lastDate = new Date(sortedHistory[sortedHistory.length - 1].timestamp);
-            const daySpan = Math.floor((lastDate - firstDate) / (24 * 60 * 60 * 1000));
 
             // Count distinct days with records
             const daysWithRecords = new Set();
@@ -905,13 +903,26 @@ function updateRecordCount() {
                 daysWithRecords.add(dayKey);
             });
 
-            // Show fallback note if NOT aggregating (i.e., showing last 10)
-            const shouldAggregate = daySpan > 5 && daysWithRecords.size > 5;
-            shouldShowFallbackNote = !shouldAggregate;
+            // Calculate day span
+            const firstDate = new Date(sortedHistory[0].timestamp);
+            const lastDate = new Date(sortedHistory[sortedHistory.length - 1].timestamp);
+            const daySpan = Math.floor((lastDate - firstDate) / (24 * 60 * 60 * 1000));
+
+            const shouldAggregate = daySpan >= 5 && daysWithRecords.size >= 5;
+
+            if (shouldAggregate && daysWithRecords.size > 10) {
+                // In aggregated mode and showing limited days
+                shouldShowLimitNote = true;
+                noteText = '(僅顯示最後10天)';
+            } else if (!shouldAggregate && totalRecords > 10) {
+                // Not aggregating and showing limited records
+                shouldShowLimitNote = true;
+                noteText = '(僅顯示最後10筆)';
+            }
         }
 
-        if (shouldShowFallbackNote) {
-            recordCount.textContent = `${totalRecords} 筆資料 (僅顯示最後10筆)`;
+        if (shouldShowLimitNote) {
+            recordCount.textContent = `${totalRecords} 筆資料 ${noteText}`;
         } else {
             recordCount.textContent = `${totalRecords} 筆資料`;
         }
@@ -1189,8 +1200,8 @@ function renderHistoryChart() {
             daysWithRecords.add(dayKey);
         });
 
-        // Aggregate if span > 5 days AND has records in > 5 distinct days
-        shouldAggregate = daySpan > 5 && daysWithRecords.size > 5;
+        // Aggregate if span >= 5 days AND has records in >= 5 distinct days
+        shouldAggregate = daySpan >= 5 && daysWithRecords.size >= 5;
 
         if (shouldAggregate) {
             // Group by day and keep only the last record of each day
@@ -1203,7 +1214,10 @@ function renderHistoryChart() {
             });
 
             // Convert map to array and sort by timestamp
-            displayHistory = Array.from(dailyRecords.values()).sort((a, b) => a.timestamp - b.timestamp);
+            let allDailyRecords = Array.from(dailyRecords.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+            // Show only last 10 days
+            displayHistory = allDailyRecords.slice(-10);
 
             // Use date-only format for x-axis
             dateFormat = { year: 'numeric', month: '2-digit', day: '2-digit' };
