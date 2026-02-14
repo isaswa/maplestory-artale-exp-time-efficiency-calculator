@@ -1250,10 +1250,10 @@ function renderHistoryChart() {
 
     // Determine percentage markers based on level range
     let percentageMarkers;
-    if (levelRange <= 5) {
-        percentageMarkers = [0, 20, 40, 60, 80]; // Show 20/40/60/80% for small ranges
+    if (levelRange <= 4) {
+        percentageMarkers = [0, 50]; // Show 50% markers for small ranges (3-4 levels)
     } else {
-        percentageMarkers = [0]; // Show only level boundaries for large ranges
+        percentageMarkers = [0]; // Show only level boundaries for large ranges (5+ levels)
     }
 
     // Generate ticks for each level and percentage
