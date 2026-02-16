@@ -893,6 +893,12 @@ function recordLevelExp() {
 
     // Update record count
     updateRecordCount();
+
+    // Refresh chart if history panel is open
+    const historyPanel = document.getElementById('historyPanel');
+    if (historyPanel && !historyPanel.classList.contains('hidden')) {
+        renderHistoryChart();
+    }
 }
 
 // Update record count display
