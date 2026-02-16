@@ -735,7 +735,7 @@ function initEventListeners() {
     document.getElementById('recordBtn').addEventListener('click', recordLevelExp);
     document.getElementById('historyToggle').addEventListener('click', toggleHistoryPanel);
     document.getElementById('closeHistory').addEventListener('click', closeHistoryPanel);
-    document.getElementById('clearHistory').addEventListener('click', clearAllHistory);
+    document.getElementById('manageHistory').addEventListener('click', showManageModal);
     document.getElementById('exportHistory').addEventListener('click', exportHistory);
     document.getElementById('importHistory').addEventListener('click', showImportModal);
 
@@ -744,10 +744,20 @@ function initEventListeners() {
     document.getElementById('cancelImport').addEventListener('click', hideImportModal);
     document.getElementById('confirmImport').addEventListener('click', confirmImport);
 
-    // Close modal on background click
+    // Manage modal event listeners
+    document.getElementById('closeManageModal').addEventListener('click', hideManageModal);
+    document.getElementById('clearAllHistory').addEventListener('click', clearAllHistory);
+    document.getElementById('manageSortOrder').addEventListener('change', renderManageRecordList);
+
+    // Close modals on background click
     document.getElementById('importModal').addEventListener('click', (e) => {
         if (e.target.id === 'importModal') {
             hideImportModal();
+        }
+    });
+    document.getElementById('manageModal').addEventListener('click', (e) => {
+        if (e.target.id === 'manageModal') {
+            hideManageModal();
         }
     });
 }
@@ -967,6 +977,144 @@ function closeHistoryPanel() {
     historyPanel.classList.add('hidden');
 }
 
+// Show manage records modal
+function showManageModal() {
+    document.getElementById('manageModal').classList.remove('hidden');
+    renderManageRecordList();
+}
+
+// Hide manage records modal
+function hideManageModal() {
+    document.getElementById('manageModal').classList.add('hidden');
+}
+
+// Render the record list in the manage modal
+function renderManageRecordList() {
+    const listContainer = document.getElementById('manageRecordList');
+    const sortOrder = document.getElementById('manageSortOrder').value;
+
+    if (levelHistory.length === 0) {
+        listContainer.innerHTML = '<div class="manage-empty">目前沒有任何紀錄</div>';
+        return;
+    }
+
+    // Create sorted copy with original indices
+    const sortedRecords = levelHistory.map((record, index) => ({ ...record, originalIndex: index }));
+    sortedRecords.sort((a, b) => sortOrder === 'desc' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
+
+    listContainer.innerHTML = sortedRecords.map(record => {
+        const date = new Date(record.timestamp);
+        const timeStr = date.toLocaleString('zh-TW', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        return `<div class="manage-record-item" data-index="${record.originalIndex}">
+            <div class="manage-record-info">
+                <span class="manage-record-time">${timeStr}</span>
+                <div class="manage-record-fields">
+                    <label class="manage-field">Lv. <input type="number" class="manage-input manage-input-level" value="${record.level}" readonly></label>
+                    <label class="manage-field">EXP <input type="number" class="manage-input manage-input-exp" value="${record.exp}" readonly></label>
+                </div>
+            </div>
+            <div class="manage-record-actions">
+                <button class="btn-edit-record" onclick="toggleEditRecord(this, ${record.originalIndex})" aria-label="編輯此紀錄">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+                <button class="btn-delete-record" onclick="deleteSingleRecord(${record.originalIndex})" aria-label="刪除此紀錄">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Toggle edit mode for a record row
+function toggleEditRecord(btn, index) {
+    const row = btn.closest('.manage-record-item');
+    const levelInput = row.querySelector('.manage-input-level');
+    const expInput = row.querySelector('.manage-input-exp');
+    const isEditing = !levelInput.readOnly;
+
+    if (isEditing) {
+        // Confirm edit
+        const newLevel = parseInt(levelInput.value);
+        const newExp = parseInt(expInput.value);
+
+        if (!newLevel || newLevel < 1 || newLevel > 200 || isNaN(newExp) || newExp < 0) {
+            alert('請輸入有效的等級 (1-200) 和經驗值');
+            return;
+        }
+
+        if (newLevel < 200) {
+            const expNeeded = expData[newLevel].exp;
+            if (newExp >= expNeeded) {
+                alert(`現在EXP必須小於 ${formatNumber(expNeeded)} (等級 ${newLevel + 1} 所需經驗值)`);
+                return;
+            }
+        }
+
+        levelHistory[index].level = newLevel;
+        levelHistory[index].exp = newExp;
+        levelHistory[index].totalExp = calculateTotalExp(newLevel, newExp);
+        saveHistory();
+        updateRecordCount();
+
+        // Refresh chart if history panel is open
+        const historyPanel = document.getElementById('historyPanel');
+        if (historyPanel && !historyPanel.classList.contains('hidden')) {
+            renderHistoryChart();
+        }
+
+        // Switch back to readonly
+        levelInput.readOnly = true;
+        expInput.readOnly = true;
+        levelInput.classList.remove('editing');
+        expInput.classList.remove('editing');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>`;
+    } else {
+        // Enter edit mode
+        levelInput.readOnly = false;
+        expInput.readOnly = false;
+        levelInput.classList.add('editing');
+        expInput.classList.add('editing');
+        levelInput.focus();
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>`;
+    }
+}
+
+// Delete a single record by its original index
+function deleteSingleRecord(index) {
+    if (!confirm('確定要刪除此紀錄嗎？')) {
+        return;
+    }
+
+    levelHistory.splice(index, 1);
+    saveHistory();
+    updateRecordCount();
+    renderManageRecordList();
+
+    // Refresh chart if history panel is open
+    const historyPanel = document.getElementById('historyPanel');
+    if (historyPanel && !historyPanel.classList.contains('hidden')) {
+        renderHistoryChart();
+    }
+}
+
 // Clear all history with confirmation
 function clearAllHistory() {
     if (levelHistory.length === 0) {
@@ -980,7 +1128,13 @@ function clearAllHistory() {
         levelHistory = [];
         saveHistory();
         updateRecordCount();
-        renderHistoryChart();
+        renderManageRecordList();
+
+        // Refresh chart if history panel is open
+        const historyPanel = document.getElementById('historyPanel');
+        if (historyPanel && !historyPanel.classList.contains('hidden')) {
+            renderHistoryChart();
+        }
         alert('所有記錄已清除！');
     } else if (confirmation !== null) {
         alert('輸入不正確，取消刪除');

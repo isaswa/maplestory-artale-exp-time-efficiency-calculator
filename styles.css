@@ -225,6 +225,14 @@ header h2 {
     background-color: #d32f2f;
 }
 
+.btn-history-action.btn-warning {
+    background-color: #f59e0b;
+}
+
+.btn-history-action.btn-warning:hover {
+    background-color: #d97706;
+}
+
 .btn-history-action svg {
     display: block;
     flex-shrink: 0;
@@ -389,6 +397,240 @@ header h2 {
 .btn-cancel-import:hover {
     opacity: 0.8;
     transform: translateY(-1px);
+}
+
+/* Manage Records Modal */
+.manage-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.manage-modal.hidden {
+    display: none;
+}
+
+.manage-modal-content {
+    background-color: var(--container-bg);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.manage-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--input-border);
+}
+
+.manage-modal-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.manage-modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-clear-all {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-clear-all:hover {
+    background-color: #d32f2f;
+    transform: translateY(-1px);
+}
+
+.close-manage-modal {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.close-manage-modal:hover {
+    opacity: 1;
+}
+
+.manage-modal-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--input-border);
+}
+
+.sort-label {
+    font-size: 14px;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sort-select {
+    padding: 4px 8px;
+    font-size: 14px;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.manage-modal-body {
+    padding: 12px 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.manage-record-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.manage-record-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    gap: 8px;
+}
+
+.manage-record-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.manage-record-time {
+    font-size: 12px;
+    color: var(--text-color);
+    opacity: 0.6;
+}
+
+.manage-record-fields {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.manage-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.manage-input {
+    width: 80px;
+    padding: 4px 8px;
+    font-size: 14px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    font-family: inherit;
+}
+
+.manage-input[readonly] {
+    cursor: default;
+}
+
+.manage-input.editing {
+    border-color: var(--button-bg);
+    background-color: var(--input-bg);
+    outline: none;
+}
+
+.manage-input-exp {
+    width: 120px;
+}
+
+.manage-record-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.btn-edit-record {
+    background: none;
+    border: none;
+    color: #f59e0b;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-edit-record:hover {
+    background-color: rgba(245, 158, 11, 0.1);
+}
+
+.btn-delete-record {
+    background: none;
+    border: none;
+    color: #f44336;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-delete-record:hover {
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.manage-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-color);
+    opacity: 0.5;
+    font-size: 14px;
 }
 
 .calc-form {
@@ -1018,6 +1260,41 @@ footer {
     .btn-confirm-import,
     .btn-cancel-import {
         width: 100%;
+    }
+
+    .manage-modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .manage-modal-header {
+        padding: 16px;
+    }
+
+    .manage-modal-header h4 {
+        font-size: 16px;
+    }
+
+    .manage-modal-toolbar {
+        padding: 10px 16px;
+    }
+
+    .manage-modal-body {
+        padding: 10px 16px;
+    }
+
+    .manage-record-fields {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+
+    .manage-input {
+        width: 70px;
+    }
+
+    .manage-input-exp {
+        width: 100px;
     }
 
     .calc-form {
