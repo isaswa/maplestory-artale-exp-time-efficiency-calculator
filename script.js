@@ -749,6 +749,9 @@ function initEventListeners() {
     document.getElementById('clearAllHistory').addEventListener('click', clearAllHistory);
     document.getElementById('manageSortOrder').addEventListener('change', renderManageRecordList);
 
+    // Chart options
+    document.getElementById('showExpGain').addEventListener('change', renderHistoryChart);
+
     // Close modals on background click
     document.getElementById('importModal').addEventListener('click', (e) => {
         if (e.target.id === 'importModal') {
@@ -1422,6 +1425,13 @@ function renderHistoryChart() {
     });
     const data = displayHistory.map(record => record.totalExp);
 
+    // Calculate EXP gain per entry
+    const showExpGain = document.getElementById('showExpGain').checked;
+    const expGainData = displayHistory.map((record, i) => {
+        if (i === 0) return 0;
+        return record.totalExp - displayHistory[i - 1].totalExp;
+    });
+
     // Find min and max levels from displayed history
     const minLevel = Math.min(...displayHistory.map(r => r.level));
     const currentLevel = parseInt(currentLevelInput.value) || displayHistory[displayHistory.length - 1].level;
@@ -1465,6 +1475,7 @@ function renderHistoryChart() {
     const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
     const buttonColor = getComputedStyle(document.documentElement).getPropertyValue('--button-bg').trim();
     const inputBorder = getComputedStyle(document.documentElement).getPropertyValue('--input-border').trim();
+    const warningColor = '#f59e0b';
 
     // X-axis configuration with uniform spacing
     const xAxisConfig = {
@@ -1482,21 +1493,117 @@ function renderHistoryChart() {
         }
     };
 
+    // Build datasets
+    const datasets = [{
+        label: '等級進度',
+        data: data,
+        borderColor: buttonColor,
+        backgroundColor: buttonColor + '33',
+        borderWidth: 2,
+        tension: 0.1,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        yAxisID: 'y'
+    }];
+
+    if (showExpGain) {
+        datasets.push({
+            label: '獲得EXP',
+            data: expGainData,
+            type: 'bar',
+            backgroundColor: warningColor + '66',
+            borderColor: warningColor,
+            borderWidth: 1,
+            yAxisID: 'yGain',
+            order: 1
+        });
+        // Move line chart to front
+        datasets[0].order = 0;
+    }
+
+    // Build scales
+    const scales = {
+        x: xAxisConfig,
+        y: {
+            position: 'left',
+            min: minTotalExp,
+            max: maxTotalExp,
+            ticks: {
+                color: textColor,
+                font: {
+                    family: "'Microsoft JhengHei', Arial, sans-serif",
+                    size: 10
+                },
+                callback: function (value) {
+                    const tick = yAxisTicks.find(t => Math.abs(t.value - value) < 1);
+                    if (tick) {
+                        if (tick.percentage === 0) {
+                            return `Lv.${tick.level}`;
+                        } else {
+                            return `${tick.percentage}%`;
+                        }
+                    }
+                    return '';
+                },
+                stepSize: undefined,
+                autoSkip: false,
+                includeBounds: true
+            },
+            afterBuildTicks: function (axis) {
+                axis.ticks = yAxisTicks.map(tick => ({
+                    value: tick.value,
+                    label: tick.percentage === 0 ? `Lv.${tick.level}` : `${tick.percentage}%`
+                }));
+            },
+            grid: {
+                color: function (context) {
+                    const tick = yAxisTicks.find(t => Math.abs(t.value - context.tick.value) < 1);
+                    if (tick && tick.percentage === 0) {
+                        return textColor + '40';
+                    }
+                    return inputBorder;
+                },
+                lineWidth: function (context) {
+                    const tick = yAxisTicks.find(t => Math.abs(t.value - context.tick.value) < 1);
+                    if (tick && tick.percentage === 0) {
+                        return 2;
+                    }
+                    return 1;
+                }
+            }
+        }
+    };
+
+    if (showExpGain) {
+        const maxGain = Math.max(...expGainData);
+        scales.yGain = {
+            position: 'right',
+            min: 0,
+            max: maxGain * 1.2 || 1,
+            ticks: {
+                color: warningColor,
+                font: {
+                    family: "'Microsoft JhengHei', Arial, sans-serif",
+                    size: 10
+                },
+                callback: function (value) {
+                    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                    if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+                    return value;
+                }
+            },
+            grid: {
+                drawOnChartArea: false
+            }
+        };
+    }
+
     // Create chart
     historyChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: '等級進度',
-                data: data,
-                borderColor: buttonColor,
-                backgroundColor: buttonColor + '33',
-                borderWidth: 2,
-                tension: 0.1,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
+            datasets: datasets
         },
         options: {
             responsive: true,
@@ -1514,6 +1621,9 @@ function renderHistoryChart() {
                 tooltip: {
                     callbacks: {
                         label: function (context) {
+                            if (context.dataset.yAxisID === 'yGain') {
+                                return `獲得EXP: ${formatNumber(context.raw)}`;
+                            }
                             const record = displayHistory[context.dataIndex];
                             if (!record) return '';
 
@@ -1527,60 +1637,7 @@ function renderHistoryChart() {
                     }
                 }
             },
-            scales: {
-                x: xAxisConfig,
-                y: {
-                    min: minTotalExp,
-                    max: maxTotalExp,
-                    ticks: {
-                        color: textColor,
-                        font: {
-                            family: "'Microsoft JhengHei', Arial, sans-serif",
-                            size: 10
-                        },
-                        callback: function (value) {
-                            // Find the closest tick definition
-                            const tick = yAxisTicks.find(t => Math.abs(t.value - value) < 1);
-                            if (tick) {
-                                if (tick.percentage === 0) {
-                                    return `Lv.${tick.level}`;
-                                } else {
-                                    return `${tick.percentage}%`;
-                                }
-                            }
-                            return '';
-                        },
-                        // Use our custom tick values
-                        stepSize: undefined,
-                        autoSkip: false,
-                        includeBounds: true
-                    },
-                    afterBuildTicks: function (axis) {
-                        // Override with our custom ticks
-                        axis.ticks = yAxisTicks.map(tick => ({
-                            value: tick.value,
-                            label: tick.percentage === 0 ? `Lv.${tick.level}` : `${tick.percentage}%`
-                        }));
-                    },
-                    grid: {
-                        color: function (context) {
-                            // Make level boundaries more prominent
-                            const tick = yAxisTicks.find(t => Math.abs(t.value - context.tick.value) < 1);
-                            if (tick && tick.percentage === 0) {
-                                return textColor + '40'; // More opaque for level boundaries
-                            }
-                            return inputBorder;
-                        },
-                        lineWidth: function (context) {
-                            const tick = yAxisTicks.find(t => Math.abs(t.value - context.tick.value) < 1);
-                            if (tick && tick.percentage === 0) {
-                                return 2; // Thicker line for level boundaries
-                            }
-                            return 1;
-                        }
-                    }
-                }
-            }
+            scales: scales
         }
     });
 }
