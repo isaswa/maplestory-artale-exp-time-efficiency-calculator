@@ -750,7 +750,10 @@ function initEventListeners() {
     document.getElementById('manageSortOrder').addEventListener('change', renderManageRecordList);
 
     // Chart options
-    document.getElementById('showExpGain').addEventListener('change', renderHistoryChart);
+    document.getElementById('showExpGain').addEventListener('change', () => {
+        localStorage.setItem('artaleShowExpGain', document.getElementById('showExpGain').checked);
+        renderHistoryChart();
+    });
 
     // Close modals on background click
     document.getElementById('importModal').addEventListener('click', (e) => {
@@ -812,6 +815,15 @@ function init() {
     // Load history
     loadHistory();
     updateRecordCount();
+
+    // Restore chart UI state
+    const showExpGain = localStorage.getItem('artaleShowExpGain') === 'true';
+    document.getElementById('showExpGain').checked = showExpGain;
+
+    if (localStorage.getItem('artaleHistoryOpen') === 'true') {
+        document.getElementById('historyPanel').classList.remove('hidden');
+        renderHistoryChart();
+    }
 
     // Set default placeholder based on current unit
     if (currentUnit === 'man') {
@@ -968,9 +980,11 @@ function toggleHistoryPanel() {
 
     if (isHidden) {
         historyPanel.classList.remove('hidden');
+        localStorage.setItem('artaleHistoryOpen', 'true');
         renderHistoryChart();
     } else {
         historyPanel.classList.add('hidden');
+        localStorage.setItem('artaleHistoryOpen', 'false');
     }
 }
 
@@ -978,6 +992,7 @@ function toggleHistoryPanel() {
 function closeHistoryPanel() {
     const historyPanel = document.getElementById('historyPanel');
     historyPanel.classList.add('hidden');
+    localStorage.setItem('artaleHistoryOpen', 'false');
 }
 
 // Show manage records modal
