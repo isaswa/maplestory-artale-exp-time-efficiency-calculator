@@ -1374,6 +1374,7 @@ function renderHistoryChart() {
 
     // Check if we should aggregate by day
     let displayHistory;
+    let previousRecord = null;
     let shouldAggregate = false;
     let dateFormat = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
 
@@ -1407,12 +1408,22 @@ function renderHistoryChart() {
             // Convert map to array and sort by timestamp
             let allDailyRecords = Array.from(dailyRecords.values()).sort((a, b) => a.timestamp - b.timestamp);
 
+            // Keep the record before the displayed slice for EXP gain calculation
+            if (allDailyRecords.length > 10) {
+                previousRecord = allDailyRecords[allDailyRecords.length - 11];
+            }
+
             // Show only last 10 days
             displayHistory = allDailyRecords.slice(-10);
 
             // Use date-only format for x-axis
             dateFormat = { year: 'numeric', month: '2-digit', day: '2-digit' };
         } else {
+            // Keep the record before the displayed slice for EXP gain calculation
+            if (sortedHistory.length > 10) {
+                previousRecord = sortedHistory[sortedHistory.length - 11];
+            }
+
             // Show latest 10 records with time
             displayHistory = sortedHistory.slice(-10);
         }
@@ -1443,7 +1454,9 @@ function renderHistoryChart() {
     // Calculate EXP gain per entry
     const showExpGain = document.getElementById('showExpGain').checked;
     const expGainData = displayHistory.map((record, i) => {
-        if (i === 0) return 0;
+        if (i === 0) {
+            return previousRecord ? record.totalExp - previousRecord.totalExp : 0;
+        }
         return record.totalExp - displayHistory[i - 1].totalExp;
     });
 
