@@ -365,13 +365,17 @@ function calculateResults(e) {
 
     // Show/hide next level time (only when target is 2+ levels above current)
     const nextLevelTimeItem = document.getElementById('nextLevelTimeItem');
+    const timeNeededRow = timeNeededSpan.closest('.result-item');
     if (targetLevel - currentLevel >= 2) {
         const expToNextLevel = expData[currentLevel].exp - currentExp;
         const nextLevelMinutes = totalTimeMinutes * (expToNextLevel / totalExpNeeded);
+        nextLevelTimeItem.querySelector('.result-label').textContent = `到下個等級(Lv.${currentLevel + 1}):`;
         document.getElementById('nextLevelTime').textContent = formatTime(nextLevelMinutes);
         nextLevelTimeItem.classList.remove('hidden');
+        timeNeededRow.classList.add('has-sub');
     } else {
         nextLevelTimeItem.classList.add('hidden');
+        timeNeededRow.classList.remove('has-sub');
     }
 
     // Show/hide advanced result details based on mode

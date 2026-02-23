@@ -1049,16 +1049,22 @@ header h2 {
     border-bottom: none;
 }
 
+.result-item.has-sub {
+    border-bottom: none;
+    padding-bottom: 4px;
+}
+
 .result-sub {
-    padding: 4px 0 12px 0;
+    padding: 0 0 12px 0;
     border-bottom: 1px solid var(--input-border);
-    margin-top: -12px;
+    margin-top: 0;
 }
 
 .result-sub .result-label,
 .result-sub .result-value {
     font-size: 13px;
     color: #f59e0b;
+    font-weight: 400;
 }
 
 .result-label {
