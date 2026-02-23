@@ -1049,6 +1049,18 @@ header h2 {
     border-bottom: none;
 }
 
+.result-sub {
+    padding: 4px 0 12px 0;
+    border-bottom: 1px solid var(--input-border);
+    margin-top: -12px;
+}
+
+.result-sub .result-label,
+.result-sub .result-value {
+    font-size: 13px;
+    color: #f59e0b;
+}
+
 .result-label {
     font-size: 16px;
     font-weight: 500;

@@ -363,6 +363,17 @@ function calculateResults(e) {
     totalExpSpan.textContent = formatNumber(totalExpNeeded);
     timeNeededSpan.textContent = formatTime(totalTimeMinutes);
 
+    // Show/hide next level time (only when target is 2+ levels above current)
+    const nextLevelTimeItem = document.getElementById('nextLevelTimeItem');
+    if (targetLevel - currentLevel >= 2) {
+        const expToNextLevel = expData[currentLevel].exp - currentExp;
+        const nextLevelMinutes = totalTimeMinutes * (expToNextLevel / totalExpNeeded);
+        document.getElementById('nextLevelTime').textContent = formatTime(nextLevelMinutes);
+        nextLevelTimeItem.classList.remove('hidden');
+    } else {
+        nextLevelTimeItem.classList.add('hidden');
+    }
+
     // Show/hide advanced result details based on mode
     const regularBonusItem = document.getElementById('regularBonus').parentElement;
     if (currentMode === 'simple') {
