@@ -38,6 +38,11 @@ function toggleMode(mode) {
 
     // Save mode preference to unified storage
     saveToLocalStorage();
+
+    // Re-run calculation to update visible result fields
+    if (!resultsDiv.classList.contains('hidden')) {
+        form.requestSubmit();
+    }
 }
 
 // Toggle event options
@@ -363,27 +368,38 @@ function calculateResults(e) {
     totalExpSpan.textContent = formatNumber(totalExpNeeded);
     timeNeededSpan.textContent = formatTime(totalTimeMinutes);
 
-    // Show/hide next level time (only when target is 2+ levels above current)
+    // Show/hide next level sub-rows (only when target is 2+ levels above current)
+    const nextLevelExpItem = document.getElementById('nextLevelExpItem');
     const nextLevelTimeItem = document.getElementById('nextLevelTimeItem');
+    const totalExpRow = document.getElementById('totalExpRow');
     const timeNeededRow = timeNeededSpan.closest('.result-item');
     if (targetLevel - currentLevel >= 2) {
         const expToNextLevel = expData[currentLevel].exp - currentExp;
         const nextLevelMinutes = totalTimeMinutes * (expToNextLevel / totalExpNeeded);
-        nextLevelTimeItem.querySelector('.result-label').textContent = `到下個等級(Lv.${currentLevel + 1}):`;
+        const nextLevelLabel = `到下個等級(Lv.${currentLevel + 1}):`;
+
+        nextLevelExpItem.querySelector('.result-label').textContent = nextLevelLabel;
+        document.getElementById('nextLevelExp').textContent = formatNumber(expToNextLevel);
+        nextLevelExpItem.classList.remove('hidden');
+        totalExpRow.classList.add('has-sub');
+
+        nextLevelTimeItem.querySelector('.result-label').textContent = nextLevelLabel;
         document.getElementById('nextLevelTime').textContent = formatTime(nextLevelMinutes);
         nextLevelTimeItem.classList.remove('hidden');
         timeNeededRow.classList.add('has-sub');
     } else {
+        nextLevelExpItem.classList.add('hidden');
+        totalExpRow.classList.remove('has-sub');
         nextLevelTimeItem.classList.add('hidden');
         timeNeededRow.classList.remove('has-sub');
     }
 
-    // Show/hide advanced result details based on mode
-    const regularBonusItem = document.getElementById('regularBonus').parentElement;
+    // Show/hide advanced-only result fields based on mode
+    const regularBonusRow = document.getElementById('regularBonusRow');
     if (currentMode === 'simple') {
-        regularBonusItem.classList.add('hidden');
+        regularBonusRow.classList.add('hidden');
     } else {
-        regularBonusItem.classList.remove('hidden');
+        regularBonusRow.classList.remove('hidden');
         document.getElementById('regularBonus').textContent = `+${regularMultiplier}%`;
     }
 
