@@ -181,8 +181,15 @@ header h2 {
 .chart-options {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 0 4px;
     margin-bottom: 12px;
+}
+
+.chart-stat {
+    font-size: 13px;
+    color: var(--text-color);
+    opacity: 0.7;
 }
 
 .chart-toggle {

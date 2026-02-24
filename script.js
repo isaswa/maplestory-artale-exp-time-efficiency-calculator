@@ -30,6 +30,12 @@ function toggleMode(mode) {
         modeSimpleBtn.classList.add('active');
         modeAdvancedBtn.classList.remove('active');
         advancedOptions.classList.add('hidden');
+
+        // Hide advanced-only result fields
+        document.getElementById('regularBonusRow').classList.add('hidden');
+        document.getElementById('eventTimeBreakdown').innerHTML = '';
+        document.getElementById('eventTimeBreakdown').classList.add('hidden');
+        document.getElementById('scheduleResult').classList.add('hidden');
     } else {
         modeSimpleBtn.classList.remove('active');
         modeAdvancedBtn.classList.add('active');
@@ -38,11 +44,6 @@ function toggleMode(mode) {
 
     // Save mode preference to unified storage
     saveToLocalStorage();
-
-    // Re-run calculation to update visible result fields
-    if (!resultsDiv.classList.contains('hidden')) {
-        form.requestSubmit();
-    }
 }
 
 // Toggle event options
@@ -1475,10 +1476,31 @@ function renderHistoryChart() {
         displayHistory = [syntheticRecord, singleRecord];
     }
 
-    // Use uniform distribution with categorical labels for all cases
-    const labels = displayHistory.map(record => {
+    // Build x-axis labels
+    const labels = displayHistory.map((record, i) => {
         const date = new Date(record.timestamp);
-        return date.toLocaleDateString('zh-TW', dateFormat);
+        if (shouldAggregate) {
+            // Aggregated mode: show DD, with month prefix on first item and month boundaries
+            const dd = String(date.getDate()).padStart(2, '0');
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const yyyy = date.getFullYear();
+
+            if (i === 0) {
+                // First item: show YYYY-MM on second line
+                return [dd, `${yyyy}-${mm}`];
+            }
+
+            // Check if this is a new month compared to the previous item
+            const prevDate = new Date(displayHistory[i - 1].timestamp);
+            if (date.getMonth() !== prevDate.getMonth() || date.getFullYear() !== prevDate.getFullYear()) {
+                return [dd, mm];
+            }
+
+            return dd;
+        } else {
+            // Non-aggregated: show MM/DD HH:mm
+            return date.toLocaleDateString('zh-TW', dateFormat);
+        }
     });
     const data = displayHistory.map(record => record.totalExp);
 
@@ -1490,6 +1512,24 @@ function renderHistoryChart() {
         }
         return record.totalExp - displayHistory[i - 1].totalExp;
     });
+
+    // Calculate and display average daily EXP
+    const avgExpEl = document.getElementById('avgDailyExp');
+    if (displayHistory.length >= 2) {
+        const firstRecord = previousRecord || displayHistory[0];
+        const lastRecord = displayHistory[displayHistory.length - 1];
+        const totalGain = lastRecord.totalExp - firstRecord.totalExp;
+        const daySpanMs = lastRecord.timestamp - firstRecord.timestamp;
+        const dayCount = daySpanMs / (24 * 60 * 60 * 1000);
+        if (dayCount >= 1) {
+            const avgDaily = Math.round(totalGain / dayCount);
+            avgExpEl.textContent = `平均每日獲得EXP: ${formatNumber(avgDaily)}`;
+        } else {
+            avgExpEl.textContent = '';
+        }
+    } else {
+        avgExpEl.textContent = '';
+    }
 
     // Find min and max levels from displayed history
     const minLevel = Math.min(...displayHistory.map(r => r.level));
@@ -1544,8 +1584,8 @@ function renderHistoryChart() {
                 family: "'Microsoft JhengHei', Arial, sans-serif",
                 size: 10
             },
-            maxRotation: 45,
-            minRotation: 45
+            maxRotation: shouldAggregate ? 0 : 45,
+            minRotation: shouldAggregate ? 0 : 45
         },
         grid: {
             color: inputBorder
