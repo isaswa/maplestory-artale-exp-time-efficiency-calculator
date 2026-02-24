@@ -1304,6 +1304,16 @@ function initEventListeners() {
     document.getElementById('modeSimple').addEventListener('click', () => toggleMode('simple'));
     document.getElementById('modeAdvanced').addEventListener('click', () => toggleMode('advanced'));
 
+    // Advanced options collapsible toggle
+    document.getElementById('advancedOptionsToggle').addEventListener('click', () => {
+        const header = document.getElementById('advancedOptionsToggle');
+        const content = document.getElementById('advancedContent');
+        const collapsed = !header.classList.contains('collapsed');
+        header.classList.toggle('collapsed', collapsed);
+        content.classList.toggle('hidden', collapsed);
+        localStorage.setItem('artaleAdvancedCollapsed', collapsed ? 'true' : 'false');
+    });
+
     // Advanced options event listeners
     expCouponCheckbox.addEventListener('change', () => {
         toggleEventOptions(expCouponCheckbox, couponOptions);
@@ -1475,6 +1485,12 @@ function init() {
     // Load history
     loadHistory();
     updateRecordCount();
+
+    // Restore advanced options collapsed state (default: open)
+    if (localStorage.getItem('artaleAdvancedCollapsed') === 'true') {
+        document.getElementById('advancedOptionsToggle').classList.add('collapsed');
+        advancedContent.classList.add('hidden');
+    }
 
     // Restore breakdown mode preference
     const savedBreakdownMode = localStorage.getItem('artaleBreakdownMode');
