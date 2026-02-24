@@ -206,10 +206,21 @@
                                 </label>
                             </div>
 
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="tauntBuff">
-                                挑釁 (+30%)
-                            </label>
+                            <div class="radio-group-inline">
+                                <span class="radio-group-label">挑釁:</span>
+                                <label>
+                                    <input type="radio" name="showdown" value="none" checked>
+                                    無 (+0%)
+                                </label>
+                                <label>
+                                    <input type="radio" name="showdown" value="lv20">
+                                    Lv.20 (+30%)
+                                </label>
+                                <label>
+                                    <input type="radio" name="showdown" value="lv30" disabled>
+                                    Lv.30 (+40%)
+                                </label>
+                            </div>
                         </div>
 
                         <!-- Area 2: EXP Events -->

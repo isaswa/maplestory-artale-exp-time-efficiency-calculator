@@ -190,9 +190,11 @@ function calculateRegularMultiplier() {
         // 'none' adds 0%
     }
 
-    // Taunt buff
-    if (document.getElementById('tauntBuff').checked) {
-        multiplier += 30; // 挑釁 +30%
+    // Showdown (挑釁)
+    const showdown = document.querySelector('input[name="showdown"]:checked');
+    if (showdown) {
+        if (showdown.value === 'lv20') multiplier += 30;
+        else if (showdown.value === 'lv30') multiplier += 40;
     }
 
     return multiplier;
@@ -1117,7 +1119,7 @@ function saveToLocalStorage() {
         unit: currentUnit,
         // Advanced options - regular buffs
         holySymbol: holySymbol ? holySymbol.value : 'none',
-        tauntBuff: document.getElementById('tauntBuff').checked,
+        showdown: (document.querySelector('input[name="showdown"]:checked') || {}).value || 'none',
         // Advanced options - events
         expCoupon: document.getElementById('expCoupon').checked,
         couponType: couponType ? couponType.value : '2x',
@@ -1165,8 +1167,14 @@ function loadFromLocalStorage() {
                 if (holySymbolRadio) holySymbolRadio.checked = true;
             }
 
-            if (formData.tauntBuff !== undefined) {
-                document.getElementById('tauntBuff').checked = formData.tauntBuff;
+            if (formData.showdown) {
+                const showdownRadio = document.querySelector(`input[name="showdown"][value="${formData.showdown}"]`);
+                if (showdownRadio) showdownRadio.checked = true;
+            } else if (formData.tauntBuff !== undefined) {
+                // Backward compatibility: old data used tauntBuff boolean
+                const val = formData.tauntBuff ? 'lv20' : 'none';
+                const showdownRadio = document.querySelector(`input[name="showdown"][value="${val}"]`);
+                if (showdownRadio) showdownRadio.checked = true;
             }
 
             // Advanced options - events
@@ -1317,8 +1325,10 @@ function initEventListeners() {
         radio.addEventListener('change', saveToLocalStorage);
     });
 
-    // Taunt checkbox
-    document.getElementById('tauntBuff').addEventListener('change', saveToLocalStorage);
+    // Showdown radio buttons
+    document.querySelectorAll('input[name="showdown"]').forEach(radio => {
+        radio.addEventListener('change', saveToLocalStorage);
+    });
 
     // Coupon related
     expCouponCheckbox.addEventListener('change', saveToLocalStorage);
