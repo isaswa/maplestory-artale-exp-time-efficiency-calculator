@@ -19,6 +19,14 @@ let currentMode = 'simple'; // Default to 簡單模式
 // Track current unit mode ('man' or 'regular')
 let currentUnit = 'man'; // Default to 萬 (10,000)
 
+// Track breakdown display mode ('total' or 'daily')
+let currentBreakdownMode = 'total';
+// Cache simulation result for day-by-day breakdown re-rendering
+let lastSimulationResult = null;
+let lastCouponMultiplier = 0;
+let lastAuraMultiplier = 0;
+let lastCustomMultiplier = 0;
+
 // Helper: get daily grinding minutes from HH/MM inputs (capped at 24:00)
 function getDailyGrindingMinutes() {
     const hours = Math.max(0, parseInt(document.getElementById('dailyHours').value) || 0);
@@ -293,60 +301,326 @@ function getPhaseDisplayInfo(phaseKey, couponMult, auraMult, customMult) {
     return { label: labels.join('+'), multiplier: totalMult };
 }
 
+// Get phase breakdown for a specific day from simulation result
+function getDayPhases(simulationResult, dayNumber) {
+    const { dayDetails, identicalDayTemplate, identicalDayLastTemplate,
+            noAuraDayStart, noAuraDayTemplate, noAuraDayLastTemplate, totalDays } = simulationResult;
+    // Pre-optimization days: direct lookup
+    if (dayNumber <= dayDetails.length) {
+        return dayDetails[dayNumber - 1];
+    }
+    // No-aura segment (aura exhausted)
+    if (noAuraDayStart && dayNumber >= noAuraDayStart) {
+        if (dayNumber === totalDays && noAuraDayLastTemplate) {
+            return noAuraDayLastTemplate;
+        }
+        return noAuraDayTemplate;
+    }
+    // Aura segment
+    if (dayNumber === totalDays && identicalDayLastTemplate) {
+        return identicalDayLastTemplate;
+    }
+    return identicalDayTemplate;
+}
+
+// Render phases for the currently selected day in day-by-day mode
+function renderDayPhases() {
+    const input = document.getElementById('breakdownDayInput');
+    const container = document.getElementById('breakdownDayPhases');
+    if (!input || !container || !lastSimulationResult) return;
+
+    container.innerHTML = '';
+
+    // Clamp value to valid range
+    let dayNumber = parseInt(input.value) || 1;
+    dayNumber = Math.max(1, Math.min(dayNumber, lastSimulationResult.totalDays));
+    input.value = dayNumber;
+    const phases = getDayPhases(lastSimulationResult, dayNumber);
+
+    if (!phases || Object.keys(phases).length === 0) {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        const span = document.createElement('span');
+        span.className = 'result-label';
+        span.textContent = '此日無練功時間';
+        div.appendChild(span);
+        container.appendChild(div);
+        return;
+    }
+
+    const phaseOrder = ['aura+coupon+custom', 'aura+coupon', 'aura+custom',
+                       'coupon+custom', 'coupon', 'custom', 'aura', 'none'];
+    for (const key of phaseOrder) {
+        const minutes = phases[key];
+        if (!minutes || minutes < 0.01) continue;
+        const info = getPhaseDisplayInfo(key, lastCouponMultiplier, lastAuraMultiplier, lastCustomMultiplier);
+        addBreakdownItem(container, info.label, info.multiplier, minutes);
+    }
+}
+
+// Switch breakdown display mode (total vs daily)
+function switchBreakdownMode(mode) {
+    currentBreakdownMode = mode;
+    localStorage.setItem('artaleBreakdownMode', mode);
+
+    document.querySelectorAll('.breakdown-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    const totalContent = document.getElementById('breakdownTotalContent');
+    const dailyContent = document.getElementById('breakdownDailyContent');
+    if (totalContent) totalContent.classList.toggle('hidden', mode !== 'total');
+    if (dailyContent) dailyContent.classList.toggle('hidden', mode !== 'daily');
+
+    if (mode === 'daily') renderDayPhases();
+}
+
+// Render event breakdown with total/daily mode toggle
+function renderEventBreakdown(eventBreakdown, simulationResult, eventPhases,
+                               couponMultiplier, auraMultiplier, customMultiplier) {
+    eventBreakdown.innerHTML = '';
+
+    if (simulationResult) {
+        // Cache for day selector re-rendering
+        lastSimulationResult = simulationResult;
+        lastCouponMultiplier = couponMultiplier;
+        lastAuraMultiplier = auraMultiplier;
+        lastCustomMultiplier = customMultiplier;
+
+        // Mode toggle buttons
+        const toggleDiv = document.createElement('div');
+        toggleDiv.className = 'breakdown-mode-toggle';
+
+        const totalBtn = document.createElement('button');
+        totalBtn.type = 'button';
+        totalBtn.className = 'breakdown-mode-btn' + (currentBreakdownMode === 'total' ? ' active' : '');
+        totalBtn.textContent = '總計';
+        totalBtn.dataset.mode = 'total';
+        totalBtn.addEventListener('click', () => switchBreakdownMode('total'));
+
+        const dailyBtn = document.createElement('button');
+        dailyBtn.type = 'button';
+        dailyBtn.className = 'breakdown-mode-btn' + (currentBreakdownMode === 'daily' ? ' active' : '');
+        dailyBtn.textContent = '逐日';
+        dailyBtn.dataset.mode = 'daily';
+        dailyBtn.addEventListener('click', () => switchBreakdownMode('daily'));
+
+        toggleDiv.appendChild(totalBtn);
+        toggleDiv.appendChild(dailyBtn);
+        eventBreakdown.appendChild(toggleDiv);
+
+        // === Total mode content ===
+        const totalContent = document.createElement('div');
+        totalContent.id = 'breakdownTotalContent';
+        if (currentBreakdownMode !== 'total') totalContent.classList.add('hidden');
+
+        // Summary line
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'result-item breakdown-summary';
+        const summaryLabel = document.createElement('span');
+        summaryLabel.className = 'result-label';
+        summaryLabel.textContent = `總共 ${simulationResult.totalDays} 天，觸發氣場 ${simulationResult.auraDaysCount} 次`;
+        summaryDiv.appendChild(summaryLabel);
+        totalContent.appendChild(summaryDiv);
+
+        // Aggregated phase items
+        const phaseOrder = ['aura+coupon+custom', 'aura+coupon', 'aura+custom',
+                           'coupon+custom', 'coupon', 'custom', 'aura', 'none'];
+        for (const key of phaseOrder) {
+            const minutes = simulationResult.phases[key];
+            if (!minutes || minutes < 0.01) continue;
+            const info = getPhaseDisplayInfo(key, couponMultiplier, auraMultiplier, customMultiplier);
+            addBreakdownItem(totalContent, info.label, info.multiplier, minutes);
+        }
+        eventBreakdown.appendChild(totalContent);
+
+        // === Day-by-day mode content ===
+        const dailyContent = document.createElement('div');
+        dailyContent.id = 'breakdownDailyContent';
+        if (currentBreakdownMode !== 'daily') dailyContent.classList.add('hidden');
+
+        // Day selector: 第 [input] 天 / 總共 M 天 [確認]
+        const selectorDiv = document.createElement('div');
+        selectorDiv.className = 'breakdown-day-selector';
+
+        const prefixSpan = document.createElement('span');
+        prefixSpan.textContent = '第';
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.id = 'breakdownDayInput';
+        input.min = 1;
+        input.max = simulationResult.totalDays;
+        input.value = 1;
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); renderDayPhases(); }
+        });
+
+        const suffixSpan = document.createElement('span');
+        suffixSpan.textContent = `天 / 總共 ${simulationResult.totalDays} 天`;
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = 'breakdown-confirm-btn';
+        confirmBtn.textContent = '確認';
+        confirmBtn.addEventListener('click', renderDayPhases);
+
+        selectorDiv.appendChild(prefixSpan);
+        selectorDiv.appendChild(input);
+        selectorDiv.appendChild(suffixSpan);
+        selectorDiv.appendChild(confirmBtn);
+        dailyContent.appendChild(selectorDiv);
+
+        // Day phases container
+        const dayPhasesDiv = document.createElement('div');
+        dayPhasesDiv.id = 'breakdownDayPhases';
+        dailyContent.appendChild(dayPhasesDiv);
+        eventBreakdown.appendChild(dailyContent);
+
+        // Render initial day if in daily mode
+        if (currentBreakdownMode === 'daily') renderDayPhases();
+
+    } else {
+        // Continuous mode: no toggle, render phases as before
+        lastSimulationResult = null;
+        eventPhases.forEach(phase => {
+            if (phase.events.length === 0) {
+                addBreakdownItem(eventBreakdown, '活動結束後', 0, phase.duration);
+            } else {
+                const labels = phase.events.map(eventName => {
+                    if (eventName === 'coupon') return getCouponLabel(couponMultiplier);
+                    if (eventName === 'custom') return '自定義';
+                    return eventName;
+                });
+                const label = labels.join('+');
+                addBreakdownItem(eventBreakdown, label, phase.multiplier, phase.duration);
+            }
+        });
+    }
+}
+
 // Day-by-day simulation for schedule with daily aura
 function simulateDayByDay(totalExpNeeded, baseExpPerMin, regularMultiplier,
-                          auraMultiplier, globalEvents, dailyMinutes) {
+                          auraMultiplier, globalEvents, dailyMinutes, auraTotalDays = -1, trackDayDetails = true) {
     const AURA_DAILY_MINUTES = 30;
     let remainingExp = totalExpNeeded;
     let day = 0;
     const phaseAccumulator = {};
 
+    // Per-day tracking (only when trackDayDetails is true)
+    const dayDetails = [];               // Per-day phase breakdowns
+    let identicalDayStart = null;        // Day number where optimization kicks in
+    let identicalDayTemplate = null;     // Phase breakdown for one identical full day
+    let identicalDayLastTemplate = null; // Phase breakdown for the partial last day
+    let auraDaysCount = 0;              // Number of days where aura was used
+
     // Deep copy global events to track remaining minutes
     const events = globalEvents.map(e => ({ ...e, remaining: e.remainingMinutes }));
+
+    // Track where no-aura days start (for getDayPhases)
+    let noAuraDayStart = null;
+    let noAuraDayTemplate = null;
+    let noAuraDayLastTemplate = null;
 
     while (remainingExp > 0.001) {
         day++;
         let dayTimeLeft = dailyMinutes;
-        let dayAuraLeft = AURA_DAILY_MINUTES;
+        // Aura is available only if we haven't exhausted the finite aura days
+        const auraAvailableToday = auraTotalDays === -1 || auraDaysCount < auraTotalDays;
+        let dayAuraLeft = auraAvailableToday ? AURA_DAILY_MINUTES : 0;
 
-        // Check optimization: if all global events depleted, all remaining days are identical
+        // Check optimization: if all global events depleted, remaining days can be fast-tracked
         const allGlobalDepleted = events.every(e => e.remaining <= 0.001);
         if (allGlobalDepleted) {
-            // Calculate EXP per day with only aura + base
             const auraExpRate = baseExpPerMin * (100 + regularMultiplier + auraMultiplier) / (100 + regularMultiplier);
             const baseExpRate = baseExpPerMin;
             const auraTimePerDay = Math.min(AURA_DAILY_MINUTES, dailyMinutes);
             const baseTimePerDay = Math.max(0, dailyMinutes - auraTimePerDay);
-            const expPerDay = (auraExpRate * auraTimePerDay) + (baseExpRate * baseTimePerDay);
+            const expPerDayWithAura = (auraExpRate * auraTimePerDay) + (baseExpRate * baseTimePerDay);
+            const expPerDayNoAura = baseExpRate * dailyMinutes;
 
-            if (expPerDay <= 0) break;
+            if (expPerDayWithAura <= 0 && expPerDayNoAura <= 0) break;
 
-            const fullDays = Math.floor(remainingExp / expPerDay);
-            const leftoverExp = remainingExp - (fullDays * expPerDay);
+            // How many aura days remain?
+            const auraRemainingDays = auraAvailableToday
+                ? (auraTotalDays === -1 ? Infinity : auraTotalDays - auraDaysCount)
+                : 0;
 
-            // Accumulate full days
-            if (fullDays > 0) {
-                phaseAccumulator['aura'] = (phaseAccumulator['aura'] || 0) + (auraTimePerDay * fullDays);
-                if (baseTimePerDay > 0) {
-                    phaseAccumulator['none'] = (phaseAccumulator['none'] || 0) + (baseTimePerDay * fullDays);
-                }
-                day += fullDays - 1; // -1 because we already counted this iteration as day++
-                remainingExp = leftoverExp;
+            if (trackDayDetails) {
+                identicalDayStart = day;
+                identicalDayTemplate = {};
+                if (auraTimePerDay > 0.001) identicalDayTemplate['aura'] = auraTimePerDay;
+                if (baseTimePerDay > 0.001) identicalDayTemplate['none'] = baseTimePerDay;
+                noAuraDayTemplate = { 'none': dailyMinutes };
             }
 
-            // Handle partial last day (if there's leftover)
-            if (remainingExp > 0.001) {
-                if (fullDays > 0) day++; // new day for partial
-                // Aura first
-                const timeInAura = Math.min(auraTimePerDay, remainingExp / auraExpRate);
-                phaseAccumulator['aura'] = (phaseAccumulator['aura'] || 0) + timeInAura;
-                remainingExp -= auraExpRate * timeInAura;
+            // === Phase 1: Days with aura ===
+            if (auraRemainingDays > 0 && expPerDayWithAura > 0) {
+                const fullAuraDays = Math.min(
+                    Math.floor(remainingExp / expPerDayWithAura),
+                    auraRemainingDays === Infinity ? Infinity : auraRemainingDays
+                );
+                const leftoverAfterAura = remainingExp - (fullAuraDays * expPerDayWithAura);
 
-                if (remainingExp > 0.001 && baseTimePerDay > 0) {
-                    const timeInBase = Math.min(baseTimePerDay, remainingExp / baseExpRate);
+                if (fullAuraDays > 0) {
+                    phaseAccumulator['aura'] = (phaseAccumulator['aura'] || 0) + (auraTimePerDay * fullAuraDays);
+                    if (baseTimePerDay > 0) {
+                        phaseAccumulator['none'] = (phaseAccumulator['none'] || 0) + (baseTimePerDay * fullAuraDays);
+                    }
+                    day += fullAuraDays - 1;
+                    remainingExp = leftoverAfterAura;
+                    auraDaysCount += fullAuraDays;
+                }
+
+                // Partial aura day (if EXP finishes mid-day or aura days run out)
+                if (remainingExp > 0.001 && remainingExp < expPerDayWithAura &&
+                    (auraTotalDays === -1 || auraDaysCount < auraTotalDays)) {
+                    if (fullAuraDays > 0) day++;
+                    const timeInAura = Math.min(auraTimePerDay, remainingExp / auraExpRate);
+                    phaseAccumulator['aura'] = (phaseAccumulator['aura'] || 0) + timeInAura;
+                    remainingExp -= auraExpRate * timeInAura;
+
+                    if (trackDayDetails) {
+                        identicalDayLastTemplate = {};
+                        if (timeInAura > 0.001) identicalDayLastTemplate['aura'] = timeInAura;
+                    }
+
+                    if (remainingExp > 0.001 && baseTimePerDay > 0) {
+                        const timeInBase = Math.min(baseTimePerDay, remainingExp / baseExpRate);
+                        phaseAccumulator['none'] = (phaseAccumulator['none'] || 0) + timeInBase;
+                        if (trackDayDetails && timeInBase > 0.001) {
+                            identicalDayLastTemplate['none'] = timeInBase;
+                        }
+                        remainingExp -= baseExpRate * timeInBase;
+                    }
+                    auraDaysCount++;
+                    if (remainingExp <= 0.001) { remainingExp = 0; break; }
+                }
+            }
+
+            // === Phase 2: Days without aura (aura exhausted) ===
+            if (remainingExp > 0.001 && expPerDayNoAura > 0) {
+                if (trackDayDetails) {
+                    noAuraDayStart = day + 1;
+                }
+                const fullNoAuraDays = Math.floor(remainingExp / expPerDayNoAura);
+                const leftoverNoAura = remainingExp - (fullNoAuraDays * expPerDayNoAura);
+
+                if (fullNoAuraDays > 0) {
+                    phaseAccumulator['none'] = (phaseAccumulator['none'] || 0) + (dailyMinutes * fullNoAuraDays);
+                    day += fullNoAuraDays;
+                    remainingExp = leftoverNoAura;
+                }
+
+                // Partial last day without aura
+                if (remainingExp > 0.001) {
+                    day++;
+                    const timeInBase = Math.min(dailyMinutes, remainingExp / baseExpRate);
                     phaseAccumulator['none'] = (phaseAccumulator['none'] || 0) + timeInBase;
-                    remainingExp = 0;
-                } else {
+
+                    if (trackDayDetails) {
+                        noAuraDayLastTemplate = { 'none': timeInBase };
+                    }
                     remainingExp = 0;
                 }
             }
@@ -354,6 +628,7 @@ function simulateDayByDay(totalExpNeeded, baseExpPerMin, regularMultiplier,
         }
 
         // Normal day simulation: grind phases in priority order (highest multiplier first)
+        const dayPhases = trackDayDetails ? {} : null;
         while (dayTimeLeft > 0.001 && remainingExp > 0.001) {
             const availableCoupon = events.find(e => e.name === 'coupon' && e.remaining > 0.001);
             const availableCustom = events.find(e => e.name === 'custom' && e.remaining > 0.001);
@@ -426,6 +701,7 @@ function simulateDayByDay(totalExpNeeded, baseExpPerMin, regularMultiplier,
             // Build phase key
             const phaseKey = best.events.length > 0 ? best.events.sort().join('+') : 'none';
             phaseAccumulator[phaseKey] = (phaseAccumulator[phaseKey] || 0) + actualDuration;
+            if (dayPhases) dayPhases[phaseKey] = (dayPhases[phaseKey] || 0) + actualDuration;
 
             // Deduct resources
             remainingExp -= expRate * actualDuration;
@@ -436,17 +712,29 @@ function simulateDayByDay(totalExpNeeded, baseExpPerMin, regularMultiplier,
             if (best.events.includes('custom') && availableCustom) availableCustom.remaining -= actualDuration;
         }
 
+        // Track aura usage for this day
+        if ((AURA_DAILY_MINUTES - dayAuraLeft) > 0.001) auraDaysCount++;
+
+        // Track per-day data
+        if (dayPhases) {
+            dayDetails.push(dayPhases);
+        }
+
         // Safety valve
         if (day > 100000) break;
     }
 
     const totalGrindingMinutes = Object.values(phaseAccumulator).reduce((s, v) => s + v, 0);
-    return { totalDays: day, phases: phaseAccumulator, totalGrindingMinutes };
+    return {
+        totalDays: day, phases: phaseAccumulator, totalGrindingMinutes,
+        dayDetails, identicalDayStart, identicalDayTemplate, identicalDayLastTemplate,
+        noAuraDayStart, noAuraDayTemplate, noAuraDayLastTemplate, auraDaysCount
+    };
 }
 
 // Binary search for daily time that completes in target days (with aura)
 function findDailyTimeForTargetDays(totalExpNeeded, baseExpPerMin, regularMultiplier,
-                                     auraMultiplier, globalEvents, targetDays) {
+                                     auraMultiplier, globalEvents, targetDays, auraTotalDays = -1) {
     let lo = 1;
     let hi = 24 * 60;
 
@@ -454,7 +742,7 @@ function findDailyTimeForTargetDays(totalExpNeeded, baseExpPerMin, regularMultip
         const mid = (lo + hi) / 2;
         const result = simulateDayByDay(
             totalExpNeeded, baseExpPerMin, regularMultiplier,
-            auraMultiplier, globalEvents.map(e => ({ ...e })), mid
+            auraMultiplier, globalEvents.map(e => ({ ...e })), mid, auraTotalDays, false
         );
         if (result.totalDays <= targetDays) {
             hi = mid;
@@ -561,9 +849,11 @@ function calculateResults(e) {
     // Get aura details (in schedule section)
     const hasAura = dailyAuraCheckbox.checked && enableScheduleCheckbox.checked;
     let auraMultiplier = 0;
+    let auraTotalDays = -1; // -1 = unlimited
     if (hasAura) {
         const auraType = document.querySelector('input[name="auraType"]:checked').value;
         auraMultiplier = auraType === '2x' ? 100 : 200;
+        auraTotalDays = parseInt(document.getElementById('auraDays').value) || -1;
     }
 
     // Determine if schedule is enabled and has valid input
@@ -600,17 +890,17 @@ function calculateResults(e) {
         if (scheduleDailyMinutes > 0) {
             simulationResult = simulateDayByDay(
                 totalExpNeeded, baseExpEfficiency / 10, regularMultiplier,
-                auraMultiplier, globalEvents, scheduleDailyMinutes
+                auraMultiplier, globalEvents, scheduleDailyMinutes, auraTotalDays
             );
             totalTimeMinutes = simulationResult.totalGrindingMinutes;
         } else if (scheduleTargetDays > 0) {
             const optimalDailyMinutes = findDailyTimeForTargetDays(
                 totalExpNeeded, baseExpEfficiency / 10, regularMultiplier,
-                auraMultiplier, globalEvents, scheduleTargetDays
+                auraMultiplier, globalEvents, scheduleTargetDays, auraTotalDays
             );
             simulationResult = simulateDayByDay(
                 totalExpNeeded, baseExpEfficiency / 10, regularMultiplier,
-                auraMultiplier, globalEvents.map(e => ({ ...e })), optimalDailyMinutes
+                auraMultiplier, globalEvents.map(e => ({ ...e })), optimalDailyMinutes, auraTotalDays
             );
             simulationResult._computedDailyMinutes = optimalDailyMinutes;
             totalTimeMinutes = simulationResult.totalGrindingMinutes;
@@ -718,40 +1008,13 @@ function calculateResults(e) {
     // Show/hide event breakdown with detailed phases (only in advanced mode)
     const eventBreakdown = document.getElementById('eventTimeBreakdown');
     if (currentMode === 'advanced' && hasEvents) {
-        eventBreakdown.innerHTML = '';
-
-        if (simulationResult) {
-            // Day-by-day simulation: display aggregated phases
-            const phaseOrder = ['coupon+custom+aura', 'coupon+aura', 'custom+aura',
-                               'coupon+custom', 'coupon', 'custom', 'aura', 'none'];
-
-            for (const key of phaseOrder) {
-                const minutes = simulationResult.phases[key];
-                if (!minutes || minutes < 0.01) continue;
-                const info = getPhaseDisplayInfo(key, couponMultiplier, auraMultiplier, customMultiplier);
-                addBreakdownItem(eventBreakdown, info.label, info.multiplier, minutes);
-            }
-        } else {
-            // Continuous mode: per-phase display
-            eventPhases.forEach(phase => {
-                if (phase.events.length === 0) {
-                    addBreakdownItem(eventBreakdown, '活動結束後', 0, phase.duration);
-                } else {
-                    const labels = phase.events.map(eventName => {
-                        if (eventName === 'coupon') return getCouponLabel(couponMultiplier);
-                        if (eventName === 'custom') return '自定義';
-                        return eventName;
-                    });
-                    const label = labels.join('+');
-                    addBreakdownItem(eventBreakdown, label, phase.multiplier, phase.duration);
-                }
-            });
-        }
-
+        renderEventBreakdown(eventBreakdown, simulationResult, eventPhases,
+                             couponMultiplier, auraMultiplier, customMultiplier);
         eventBreakdown.classList.remove('hidden');
     } else {
         eventBreakdown.innerHTML = '';
         eventBreakdown.classList.add('hidden');
+        lastSimulationResult = null;
     }
 
     // Display schedule result
@@ -869,7 +1132,8 @@ function saveToLocalStorage() {
         dailyMinutes: document.getElementById('dailyMinutes').value,
         targetDays: document.getElementById('targetDays').value,
         dailyAura: dailyAuraCheckbox.checked,
-        auraType: auraType ? auraType.value : '2x'
+        auraType: auraType ? auraType.value : '2x',
+        auraDays: document.getElementById('auraDays').value
     };
 
     localStorage.setItem('artaleCalcData', JSON.stringify(formData));
@@ -972,6 +1236,10 @@ function loadFromLocalStorage() {
             if (formData.auraType !== undefined) {
                 const auraTypeRadio = document.querySelector(`input[name="auraType"][value="${formData.auraType}"]`);
                 if (auraTypeRadio) auraTypeRadio.checked = true;
+            }
+
+            if (formData.auraDays !== undefined) {
+                document.getElementById('auraDays').value = formData.auraDays;
             }
 
             // Now apply toggles (which depend on loaded values for warning checks)
@@ -1103,6 +1371,7 @@ function initEventListeners() {
     document.querySelectorAll('input[name="auraType"]').forEach(radio => {
         radio.addEventListener('change', saveToLocalStorage);
     });
+    document.getElementById('auraDays').addEventListener('input', saveToLocalStorage);
 
     // Save to localStorage when basic inputs change
     currentLevelInput.addEventListener('input', saveToLocalStorage);
@@ -1196,6 +1465,10 @@ function init() {
     // Load history
     loadHistory();
     updateRecordCount();
+
+    // Restore breakdown mode preference
+    const savedBreakdownMode = localStorage.getItem('artaleBreakdownMode');
+    if (savedBreakdownMode === 'daily') currentBreakdownMode = 'daily';
 
     // Restore chart UI state
     const showExpGain = localStorage.getItem('artaleShowExpGain') === 'true';

@@ -4,6 +4,10 @@
     box-sizing: border-box;
 }
 
+.hidden {
+    display: none;
+}
+
 :root {
     /* Dark theme (default) */
     --bg-color: #2a2a2a;
@@ -1164,6 +1168,92 @@ header h2 {
     padding-left: 8px;
 }
 
+/* Breakdown mode toggle */
+.breakdown-mode-toggle {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.breakdown-mode-btn {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.breakdown-mode-btn:hover {
+    border-color: var(--button-bg);
+}
+
+.breakdown-mode-btn.active {
+    background-color: var(--button-bg);
+    color: white;
+    border-color: var(--button-bg);
+}
+
+.breakdown-summary {
+    border-bottom: none;
+    padding-bottom: 4px;
+}
+
+.breakdown-summary .result-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--button-bg);
+    min-width: auto;
+    padding-left: 0;
+}
+
+.breakdown-day-selector {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.breakdown-day-selector input[type="number"] {
+    width: 60px;
+    padding: 5px 8px;
+    font-size: 14px;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    text-align: center;
+}
+
+.breakdown-day-selector input[type="number"]:focus {
+    outline: none;
+    border-color: var(--button-bg);
+}
+
+.breakdown-confirm-btn {
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-left: 4px;
+}
+
+.breakdown-confirm-btn:hover {
+    background-color: #1976D2;
+}
+
 footer {
     margin-top: 30px;
     text-align: center;
@@ -1566,6 +1656,29 @@ footer {
 
     .event-breakdown .result-value-secondary {
         font-size: 14px;
+    }
+
+    .breakdown-mode-btn {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    .breakdown-summary .result-label {
+        font-size: 13px;
+    }
+
+    .breakdown-day-selector {
+        font-size: 13px;
+    }
+
+    .breakdown-day-selector input[type="number"] {
+        font-size: 13px;
+        width: 50px;
+    }
+
+    .breakdown-confirm-btn {
+        font-size: 12px;
+        padding: 5px 10px;
     }
 
     footer {
