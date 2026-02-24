@@ -241,30 +241,6 @@
                                 </div>
                             </div>
 
-                            <!-- Weather Event -->
-                            <div class="event-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="weatherEvent">
-                                    每日氣場15次
-                                </label>
-                                <div id="weatherOptions" class="event-options hidden">
-                                    <div class="radio-group-inline">
-                                        <label>
-                                            <input type="radio" name="weatherType" value="2x" checked>
-                                            2x (+100%)
-                                        </label>
-                                        <label>
-                                            <input type="radio" name="weatherType" value="3x">
-                                            3x (+200%)
-                                        </label>
-                                    </div>
-                                    <label class="input-label">
-                                        剩餘次數:
-                                        <input type="number" id="weatherTimes" min="0" value="0" class="small-input">
-                                        (每次2x15=30分鐘)
-                                    </label>
-                                </div>
-                            </div>
 
                             <!-- Custom Event -->
                             <div class="event-group">
@@ -289,39 +265,69 @@
 
                         <!-- Area 3: Grinding Schedule -->
                         <div class="advanced-section">
-                            <h4>練功排程</h4>
-
-                            <div class="radio-group">
-                                <label>
-                                    <input type="radio" name="scheduleMode" value="daily" checked>
-                                    每日練功
-                                </label>
-                                <label>
-                                    <input type="radio" name="scheduleMode" value="target">
-                                    目標天數
+                            <div class="schedule-header">
+                                <h4>練功排程</h4>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="enableSchedule">
+                                    <span class="toggle-slider"></span>
                                 </label>
                             </div>
 
-                            <div id="scheduleInputs" class="schedule-inputs">
-                                <!-- Daily grinding option -->
-                                <div id="dailyGrindingInput" class="schedule-option">
-                                    <label class="input-label">每日練功時間:</label>
-                                    <div class="time-unit-toggle">
-                                        <button type="button" id="unitHour" class="unit-btn-small active">小時</button>
-                                        <button type="button" id="unitMinute" class="unit-btn-small">分鐘</button>
-                                    </div>
-                                    <input type="number" id="dailyTime" min="0" step="0.1" value="0" class="small-input">
-                                    <span class="input-hint">(輸入0代表不計算)</span>
+                            <div id="scheduleContent" class="schedule-content hidden">
+                                <div class="radio-group">
+                                    <label>
+                                        <input type="radio" name="scheduleMode" value="daily" checked>
+                                        每日練功
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="scheduleMode" value="target">
+                                        目標天數
+                                    </label>
                                 </div>
 
-                                <!-- Target days option -->
-                                <div id="targetDaysInput" class="schedule-option hidden">
-                                    <label class="input-label">
-                                        目標天數:
-                                        <input type="number" id="targetDays" min="0" value="0" class="small-input">
-                                        天
-                                        <span class="input-hint">(輸入0代表不計算)</span>
+                                <div id="scheduleInputs" class="schedule-inputs">
+                                    <!-- Daily grinding option -->
+                                    <div id="dailyGrindingInput" class="schedule-option">
+                                        <label class="input-label">每日練功時間:</label>
+                                        <div class="time-hm-input">
+                                            <input type="number" id="dailyHours" min="0" max="23" step="1" value="1" class="small-input">
+                                            <span>小時</span>
+                                            <input type="number" id="dailyMinutes" min="0" max="59" step="1" value="0" class="small-input">
+                                            <span>分鐘</span>
+                                        </div>
+                                        <span id="scheduleWarning" class="schedule-warning" style="display:none;">請輸入大於0的練功時間</span>
+                                    </div>
+
+                                    <!-- Target days option -->
+                                    <div id="targetDaysInput" class="schedule-option hidden">
+                                        <label class="input-label">
+                                            目標天數:
+                                            <input type="number" id="targetDays" min="0" value="0" class="small-input">
+                                            天
+                                        </label>
+                                        <span id="targetDaysWarning" class="schedule-warning" style="display:none;">請輸入大於0的目標天數</span>
+                                    </div>
+                                </div>
+
+                                <!-- Daily Aura -->
+                                <div class="event-group schedule-sub-item">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="dailyAura">
+                                        每日氣場 (每日15次 = 30分鐘)
                                     </label>
+                                    <div id="auraOptions" class="event-options hidden">
+                                        <div class="radio-group-inline">
+                                            <label>
+                                                <input type="radio" name="auraType" value="2x" checked>
+                                                2x (+100%)
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="auraType" value="3x">
+                                                3x (+200%)
+                                            </label>
+                                        </div>
+                                        <span id="auraWarning" class="schedule-warning" style="display:none;">如果每日練功時間低於1小時，氣場的計算可能會有較大誤差</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

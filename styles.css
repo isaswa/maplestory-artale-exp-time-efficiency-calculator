@@ -931,6 +931,78 @@ header h2 {
     margin-top: 8px;
 }
 
+.schedule-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--input-border);
+    border-radius: 22px;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: var(--button-bg);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+}
+
+.schedule-content {
+    margin-top: 8px;
+}
+
+.schedule-content.hidden {
+    display: none;
+}
+
+.schedule-warning {
+    display: block;
+    color: #f59e0b;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.schedule-sub-item {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--input-border);
+}
+
 .schedule-inputs {
     margin-top: 12px;
 }
@@ -943,32 +1015,12 @@ header h2 {
     display: none;
 }
 
-.time-unit-toggle {
+.time-hm-input {
     display: flex;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
     margin: 8px 0;
-}
-
-.unit-btn-small {
-    padding: 4px 12px;
-    font-size: 13px;
-    font-weight: 500;
-    background-color: var(--input-bg);
-    color: var(--text-color);
-    border: 1px solid var(--input-border);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.unit-btn-small:hover {
-    border-color: var(--button-bg);
-}
-
-.unit-btn-small.active {
-    background-color: var(--button-bg);
-    color: white;
-    border-color: var(--button-bg);
+    font-size: 14px;
 }
 
 .input-label {
@@ -1463,13 +1515,8 @@ footer {
         max-width: 90px;
     }
 
-    .time-unit-toggle {
-        gap: 6px;
-    }
-
-    .unit-btn-small {
-        padding: 6px 12px;
-        font-size: 12px;
+    .time-hm-input {
+        font-size: 13px;
     }
 
     .btn-calculate {

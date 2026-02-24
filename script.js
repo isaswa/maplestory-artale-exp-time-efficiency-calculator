@@ -1,10 +1,16 @@
+// NOTE: For any new input field with a constrained range (e.g. min/max),
+// add validation + tooltip (setCustomValidity + reportValidity) on input.
+// Only skip this for inputs that accept any-range numbers (e.g. EXP values).
+
 // DOM elements - declare but don't initialize yet
 let form, currentLevelInput, currentExpInput, targetLevelInput, expEfficiencyInput;
 let resultsDiv, startLevelSpan, endLevelSpan, totalExpSpan, regularBonusSpan, timeNeededSpan;
 let themeToggle, themeIcon, unitManBtn, unitRegularBtn;
 let advancedOptions, advancedContent;
-let expCouponCheckbox, couponOptions, weatherEventCheckbox, weatherOptions;
+let expCouponCheckbox, couponOptions;
 let customEventCheckbox, customOptions;
+let enableScheduleCheckbox, scheduleContent;
+let dailyAuraCheckbox, auraOptions;
 let dailyGrindingInput, targetDaysInput;
 
 // Track current mode ('simple' or 'advanced')
@@ -13,8 +19,50 @@ let currentMode = 'simple'; // Default to 簡單模式
 // Track current unit mode ('man' or 'regular')
 let currentUnit = 'man'; // Default to 萬 (10,000)
 
-// Track current time unit for daily grinding ('hour' or 'minute')
-let currentTimeUnit = 'hour'; // Default to 小時
+// Helper: get daily grinding minutes from HH/MM inputs (capped at 24:00)
+function getDailyGrindingMinutes() {
+    const hours = Math.max(0, parseInt(document.getElementById('dailyHours').value) || 0);
+    const minutes = Math.max(0, parseInt(document.getElementById('dailyMinutes').value) || 0);
+    return Math.min(hours * 60 + minutes, 1440);
+}
+
+// Validate and clamp HH/MM inputs so total does not exceed 24:00.
+// Shows a native tooltip on the offending input if out of range.
+function clampDailyTimeInputs() {
+    const hoursEl = document.getElementById('dailyHours');
+    const minutesEl = document.getElementById('dailyMinutes');
+    let h = parseInt(hoursEl.value) || 0;
+    let m = parseInt(minutesEl.value) || 0;
+
+    // Clear previous validation
+    hoursEl.setCustomValidity('');
+    minutesEl.setCustomValidity('');
+
+    if (h < 0) {
+        hoursEl.setCustomValidity('小時不能小於 0');
+        hoursEl.reportValidity();
+        hoursEl.value = 0;
+    } else if (h > 24) {
+        hoursEl.setCustomValidity('小時不能超過 24');
+        hoursEl.reportValidity();
+        hoursEl.value = 24;
+        minutesEl.value = 0;
+    } else if (h === 24 && m > 0) {
+        minutesEl.setCustomValidity('每日練功時間不能超過 24 小時');
+        minutesEl.reportValidity();
+        minutesEl.value = 0;
+    }
+
+    if (m < 0) {
+        minutesEl.setCustomValidity('分鐘不能小於 0');
+        minutesEl.reportValidity();
+        minutesEl.value = 0;
+    } else if (m > 59) {
+        minutesEl.setCustomValidity('分鐘不能超過 59');
+        minutesEl.reportValidity();
+        minutesEl.value = 59;
+    }
+}
 
 // Flag to prevent auto-save during initial page load
 let isInitializing = true;
@@ -55,6 +103,19 @@ function toggleEventOptions(checkbox, optionsDiv) {
     }
 }
 
+// Toggle schedule enable/disable
+function toggleScheduleEnabled() {
+    if (enableScheduleCheckbox.checked) {
+        scheduleContent.classList.remove('hidden');
+    } else {
+        scheduleContent.classList.add('hidden');
+        // Hide schedule result when disabled
+        document.getElementById('scheduleResult').classList.add('hidden');
+    }
+    updateScheduleWarning();
+    updateAuraWarning();
+}
+
 // Toggle schedule mode inputs
 function toggleScheduleMode() {
     const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
@@ -64,6 +125,45 @@ function toggleScheduleMode() {
     } else if (scheduleMode && scheduleMode.value === 'target') {
         dailyGrindingInput.classList.add('hidden');
         targetDaysInput.classList.remove('hidden');
+    }
+    updateScheduleWarning();
+    updateAuraWarning();
+}
+
+// Update schedule input warning
+function updateScheduleWarning() {
+    const scheduleWarning = document.getElementById('scheduleWarning');
+    const targetDaysWarning = document.getElementById('targetDaysWarning');
+    if (!enableScheduleCheckbox.checked) {
+        scheduleWarning.style.display = 'none';
+        targetDaysWarning.style.display = 'none';
+        return;
+    }
+    const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
+    if (scheduleMode && scheduleMode.value === 'daily') {
+        const dailyMinutes = getDailyGrindingMinutes();
+        scheduleWarning.style.display = dailyMinutes <= 0 ? 'block' : 'none';
+        targetDaysWarning.style.display = 'none';
+    } else if (scheduleMode && scheduleMode.value === 'target') {
+        const targetDays = parseInt(document.getElementById('targetDays').value) || 0;
+        targetDaysWarning.style.display = targetDays <= 0 ? 'block' : 'none';
+        scheduleWarning.style.display = 'none';
+    }
+}
+
+// Update aura warning (daily time < 1 hour)
+function updateAuraWarning() {
+    const auraWarning = document.getElementById('auraWarning');
+    if (!auraWarning || !dailyAuraCheckbox.checked || !enableScheduleCheckbox.checked) {
+        if (auraWarning) auraWarning.style.display = 'none';
+        return;
+    }
+    const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
+    if (scheduleMode && scheduleMode.value === 'daily') {
+        const dailyMinutes = getDailyGrindingMinutes();
+        auraWarning.style.display = (dailyMinutes > 0 && dailyMinutes < 60) ? 'block' : 'none';
+    } else {
+        auraWarning.style.display = 'none';
     }
 }
 
@@ -90,7 +190,7 @@ function calculateRegularMultiplier() {
     return multiplier;
 }
 
-// Calculate event EXP multiplier
+// Calculate event EXP multiplier (coupon + custom only; aura handled separately in schedule)
 function calculateEventMultiplier() {
     let multiplier = 0;
 
@@ -98,19 +198,9 @@ function calculateEventMultiplier() {
     if (document.getElementById('expCoupon').checked) {
         const couponType = document.querySelector('input[name="couponType"]:checked').value;
         if (couponType === '2x') {
-            multiplier += 100; // +100%
+            multiplier += 100;
         } else if (couponType === '3x') {
-            multiplier += 200; // +200%
-        }
-    }
-
-    // Weather Event
-    if (document.getElementById('weatherEvent').checked) {
-        const weatherType = document.querySelector('input[name="weatherType"]:checked').value;
-        if (weatherType === '2x') {
-            multiplier += 100; // +100%
-        } else if (weatherType === '3x') {
-            multiplier += 200; // +200%
+            multiplier += 200;
         }
     }
 
@@ -162,8 +252,8 @@ function getCouponLabel(multiplier) {
     return '加倍券';
 }
 
-// Get weather label
-function getWeatherLabel(multiplier) {
+// Get aura label
+function getAuraLabel(multiplier) {
     if (multiplier === 100) return '2x氣場';
     if (multiplier === 200) return '3x氣場';
     return '氣場';
@@ -185,6 +275,195 @@ function addBreakdownItem(container, label, multiplier, timeMinutes) {
     div.appendChild(labelSpan);
     div.appendChild(valueSpan);
     container.appendChild(div);
+}
+
+// Get phase display info for breakdown
+function getPhaseDisplayInfo(phaseKey, couponMult, auraMult, customMult) {
+    if (phaseKey === 'none') {
+        return { label: '無加成', multiplier: 0 };
+    }
+    const parts = phaseKey.split('+');
+    let totalMult = 0;
+    const labels = [];
+
+    if (parts.includes('coupon')) { labels.push(getCouponLabel(couponMult)); totalMult += couponMult; }
+    if (parts.includes('custom')) { labels.push('自定義'); totalMult += customMult; }
+    if (parts.includes('aura')) { labels.push(getAuraLabel(auraMult)); totalMult += auraMult; }
+
+    return { label: labels.join('+'), multiplier: totalMult };
+}
+
+// Day-by-day simulation for schedule with daily aura
+function simulateDayByDay(totalExpNeeded, baseExpPerMin, regularMultiplier,
+                          auraMultiplier, globalEvents, dailyMinutes) {
+    const AURA_DAILY_MINUTES = 30;
+    let remainingExp = totalExpNeeded;
+    let day = 0;
+    const phaseAccumulator = {};
+
+    // Deep copy global events to track remaining minutes
+    const events = globalEvents.map(e => ({ ...e, remaining: e.remainingMinutes }));
+
+    while (remainingExp > 0.001) {
+        day++;
+        let dayTimeLeft = dailyMinutes;
+        let dayAuraLeft = AURA_DAILY_MINUTES;
+
+        // Check optimization: if all global events depleted, all remaining days are identical
+        const allGlobalDepleted = events.every(e => e.remaining <= 0.001);
+        if (allGlobalDepleted) {
+            // Calculate EXP per day with only aura + base
+            const auraExpRate = baseExpPerMin * (100 + regularMultiplier + auraMultiplier) / (100 + regularMultiplier);
+            const baseExpRate = baseExpPerMin;
+            const auraTimePerDay = Math.min(AURA_DAILY_MINUTES, dailyMinutes);
+            const baseTimePerDay = Math.max(0, dailyMinutes - auraTimePerDay);
+            const expPerDay = (auraExpRate * auraTimePerDay) + (baseExpRate * baseTimePerDay);
+
+            if (expPerDay <= 0) break;
+
+            const fullDays = Math.floor(remainingExp / expPerDay);
+            const leftoverExp = remainingExp - (fullDays * expPerDay);
+
+            // Accumulate full days
+            if (fullDays > 0) {
+                phaseAccumulator['aura'] = (phaseAccumulator['aura'] || 0) + (auraTimePerDay * fullDays);
+                if (baseTimePerDay > 0) {
+                    phaseAccumulator['none'] = (phaseAccumulator['none'] || 0) + (baseTimePerDay * fullDays);
+                }
+                day += fullDays - 1; // -1 because we already counted this iteration as day++
+                remainingExp = leftoverExp;
+            }
+
+            // Handle partial last day (if there's leftover)
+            if (remainingExp > 0.001) {
+                if (fullDays > 0) day++; // new day for partial
+                // Aura first
+                const timeInAura = Math.min(auraTimePerDay, remainingExp / auraExpRate);
+                phaseAccumulator['aura'] = (phaseAccumulator['aura'] || 0) + timeInAura;
+                remainingExp -= auraExpRate * timeInAura;
+
+                if (remainingExp > 0.001 && baseTimePerDay > 0) {
+                    const timeInBase = Math.min(baseTimePerDay, remainingExp / baseExpRate);
+                    phaseAccumulator['none'] = (phaseAccumulator['none'] || 0) + timeInBase;
+                    remainingExp = 0;
+                } else {
+                    remainingExp = 0;
+                }
+            }
+            break;
+        }
+
+        // Normal day simulation: grind phases in priority order (highest multiplier first)
+        while (dayTimeLeft > 0.001 && remainingExp > 0.001) {
+            const availableCoupon = events.find(e => e.name === 'coupon' && e.remaining > 0.001);
+            const availableCustom = events.find(e => e.name === 'custom' && e.remaining > 0.001);
+            const auraAvailable = dayAuraLeft > 0.001;
+
+            // Build all possible combos and pick highest multiplier
+            const combos = [];
+
+            if (availableCoupon && availableCustom && auraAvailable) {
+                combos.push({
+                    events: ['coupon', 'custom', 'aura'],
+                    duration: Math.min(dayTimeLeft, availableCoupon.remaining, availableCustom.remaining, dayAuraLeft),
+                    multiplier: availableCoupon.multiplier + availableCustom.multiplier + auraMultiplier
+                });
+            }
+            if (availableCoupon && auraAvailable) {
+                combos.push({
+                    events: ['coupon', 'aura'],
+                    duration: Math.min(dayTimeLeft, availableCoupon.remaining, dayAuraLeft),
+                    multiplier: availableCoupon.multiplier + auraMultiplier
+                });
+            }
+            if (availableCustom && auraAvailable) {
+                combos.push({
+                    events: ['custom', 'aura'],
+                    duration: Math.min(dayTimeLeft, availableCustom.remaining, dayAuraLeft),
+                    multiplier: availableCustom.multiplier + auraMultiplier
+                });
+            }
+            if (availableCoupon && availableCustom) {
+                combos.push({
+                    events: ['coupon', 'custom'],
+                    duration: Math.min(dayTimeLeft, availableCoupon.remaining, availableCustom.remaining),
+                    multiplier: availableCoupon.multiplier + availableCustom.multiplier
+                });
+            }
+            if (availableCoupon) {
+                combos.push({
+                    events: ['coupon'],
+                    duration: Math.min(dayTimeLeft, availableCoupon.remaining),
+                    multiplier: availableCoupon.multiplier
+                });
+            }
+            if (availableCustom) {
+                combos.push({
+                    events: ['custom'],
+                    duration: Math.min(dayTimeLeft, availableCustom.remaining),
+                    multiplier: availableCustom.multiplier
+                });
+            }
+            if (auraAvailable) {
+                combos.push({
+                    events: ['aura'],
+                    duration: Math.min(dayTimeLeft, dayAuraLeft),
+                    multiplier: auraMultiplier
+                });
+            }
+            // Base (no bonus)
+            combos.push({ events: [], duration: dayTimeLeft, multiplier: 0 });
+
+            // Sort by multiplier descending
+            combos.sort((a, b) => b.multiplier - a.multiplier);
+            const best = combos[0];
+
+            // Calculate EXP rate for this phase
+            const expRate = baseExpPerMin * (100 + regularMultiplier + best.multiplier) / (100 + regularMultiplier);
+            const timeToFinish = remainingExp / expRate;
+            const actualDuration = Math.min(best.duration, timeToFinish);
+
+            // Build phase key
+            const phaseKey = best.events.length > 0 ? best.events.sort().join('+') : 'none';
+            phaseAccumulator[phaseKey] = (phaseAccumulator[phaseKey] || 0) + actualDuration;
+
+            // Deduct resources
+            remainingExp -= expRate * actualDuration;
+            dayTimeLeft -= actualDuration;
+
+            if (best.events.includes('aura')) dayAuraLeft -= actualDuration;
+            if (best.events.includes('coupon') && availableCoupon) availableCoupon.remaining -= actualDuration;
+            if (best.events.includes('custom') && availableCustom) availableCustom.remaining -= actualDuration;
+        }
+
+        // Safety valve
+        if (day > 100000) break;
+    }
+
+    const totalGrindingMinutes = Object.values(phaseAccumulator).reduce((s, v) => s + v, 0);
+    return { totalDays: day, phases: phaseAccumulator, totalGrindingMinutes };
+}
+
+// Binary search for daily time that completes in target days (with aura)
+function findDailyTimeForTargetDays(totalExpNeeded, baseExpPerMin, regularMultiplier,
+                                     auraMultiplier, globalEvents, targetDays) {
+    let lo = 1;
+    let hi = 24 * 60;
+
+    for (let i = 0; i < 50; i++) {
+        const mid = (lo + hi) / 2;
+        const result = simulateDayByDay(
+            totalExpNeeded, baseExpPerMin, regularMultiplier,
+            auraMultiplier, globalEvents.map(e => ({ ...e })), mid
+        );
+        if (result.totalDays <= targetDays) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+
+    return hi;
 }
 
 // Calculate and display results
@@ -259,29 +538,18 @@ function calculateResults(e) {
 
     // Get event details
     const hasCoupon = document.getElementById('expCoupon').checked;
-    const hasWeather = document.getElementById('weatherEvent').checked;
     const hasCustom = document.getElementById('customEvent').checked;
 
     let couponMinutes = 0;
-    let weatherMinutes = 0;
     let customMinutes = 0;
     let couponMultiplier = 0;
-    let weatherMultiplier = 0;
     let customMultiplier = 0;
 
     if (hasCoupon) {
         const couponCount = parseInt(document.getElementById('couponCount').value);
-        // Each coupon = 30 minutes, -1 = infinite
         couponMinutes = couponCount === -1 ? Infinity : couponCount * 30;
         const couponType = document.querySelector('input[name="couponType"]:checked').value;
         couponMultiplier = couponType === '2x' ? 100 : 200;
-    }
-
-    if (hasWeather) {
-        const weatherTimes = parseInt(document.getElementById('weatherTimes').value);
-        weatherMinutes = weatherTimes * 30;
-        const weatherType = document.querySelector('input[name="weatherType"]:checked').value;
-        weatherMultiplier = weatherType === '2x' ? 100 : 200;
     }
 
     if (hasCustom) {
@@ -290,71 +558,114 @@ function calculateResults(e) {
         customMultiplier = parseInt(document.getElementById('customBonus').value);
     }
 
-    // Build list of active events with their durations and multipliers
-    const activeEvents = [];
-    if (hasCoupon) activeEvents.push({ name: 'coupon', duration: couponMinutes, multiplier: couponMultiplier });
-    if (hasWeather) activeEvents.push({ name: 'weather', duration: weatherMinutes, multiplier: weatherMultiplier });
-    if (hasCustom) activeEvents.push({ name: 'custom', duration: customMinutes, multiplier: customMultiplier });
+    // Get aura details (in schedule section)
+    const hasAura = dailyAuraCheckbox.checked && enableScheduleCheckbox.checked;
+    let auraMultiplier = 0;
+    if (hasAura) {
+        const auraType = document.querySelector('input[name="auraType"]:checked').value;
+        auraMultiplier = auraType === '2x' ? 100 : 200;
+    }
 
-    // Calculate time distribution across event combinations
-    let remainingExp = totalExpNeeded;
-    let eventPhases = [];
+    // Determine if schedule is enabled and has valid input
+    const isScheduleEnabled = enableScheduleCheckbox.checked;
+    const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
+    let scheduleDailyMinutes = 0;
+    let scheduleTargetDays = 0;
 
-    // Generate all possible event combinations and calculate their phases
-    if (activeEvents.length > 0) {
-        let currentTime = 0;
-        let currentEvents = [...activeEvents];
-
-        while (currentEvents.length > 0 && remainingExp > 0) {
-            // Calculate total multiplier for current active events
-            const totalEventMultiplier = currentEvents.reduce((sum, e) => sum + e.multiplier, 0);
-            const expRate = baseExpEfficiency * (100 + regularMultiplier + totalEventMultiplier) / (100 + regularMultiplier);
-            const expPerMinute = expRate / 10;
-
-            // Find the next event that will expire
-            const nextExpiration = Math.min(...currentEvents.map(e => e.duration));
-            const phaseDuration = nextExpiration - currentTime;
-
-            const expInPhase = expPerMinute * phaseDuration;
-
-            if (expInPhase >= remainingExp) {
-                // This phase completes the grinding
-                eventPhases.push({
-                    events: currentEvents.map(e => e.name),
-                    multiplier: totalEventMultiplier,
-                    duration: remainingExp / expPerMinute
-                });
-                remainingExp = 0;
-                break;
-            } else {
-                // Use full phase duration
-                eventPhases.push({
-                    events: currentEvents.map(e => e.name),
-                    multiplier: totalEventMultiplier,
-                    duration: phaseDuration
-                });
-                remainingExp -= expInPhase;
-                currentTime = nextExpiration;
-
-                // Remove expired events
-                currentEvents = currentEvents.filter(e => e.duration > currentTime);
-            }
+    if (currentMode === 'advanced' && isScheduleEnabled && scheduleMode) {
+        if (scheduleMode.value === 'daily') {
+            scheduleDailyMinutes = getDailyGrindingMinutes();
+        } else if (scheduleMode.value === 'target') {
+            scheduleTargetDays = parseInt(document.getElementById('targetDays').value) || 0;
         }
     }
 
-    // Phase: No events (regular grinding)
-    if (remainingExp > 0) {
-        const expPerMinute = regularExpPerTenMin / 10;
-        eventPhases.push({
-            events: [],
-            multiplier: 0,
-            duration: remainingExp / expPerMinute
-        });
+    const useAuraSimulation = hasAura && (scheduleDailyMinutes > 0 || scheduleTargetDays > 0);
+
+    // Build list of active events (coupon + custom only; aura handled in simulation)
+    const activeEvents = [];
+    if (hasCoupon) activeEvents.push({ name: 'coupon', duration: couponMinutes, multiplier: couponMultiplier });
+    if (hasCustom) activeEvents.push({ name: 'custom', duration: customMinutes, multiplier: customMultiplier });
+
+    let eventPhases = [];
+    let totalTimeMinutes = 0;
+    let simulationResult = null;
+
+    if (useAuraSimulation) {
+        // Day-by-day simulation path (aura + schedule)
+        const globalEvents = [];
+        if (hasCoupon) globalEvents.push({ name: 'coupon', remainingMinutes: couponMinutes, multiplier: couponMultiplier });
+        if (hasCustom) globalEvents.push({ name: 'custom', remainingMinutes: customMinutes, multiplier: customMultiplier });
+
+        if (scheduleDailyMinutes > 0) {
+            simulationResult = simulateDayByDay(
+                totalExpNeeded, baseExpEfficiency / 10, regularMultiplier,
+                auraMultiplier, globalEvents, scheduleDailyMinutes
+            );
+            totalTimeMinutes = simulationResult.totalGrindingMinutes;
+        } else if (scheduleTargetDays > 0) {
+            const optimalDailyMinutes = findDailyTimeForTargetDays(
+                totalExpNeeded, baseExpEfficiency / 10, regularMultiplier,
+                auraMultiplier, globalEvents, scheduleTargetDays
+            );
+            simulationResult = simulateDayByDay(
+                totalExpNeeded, baseExpEfficiency / 10, regularMultiplier,
+                auraMultiplier, globalEvents.map(e => ({ ...e })), optimalDailyMinutes
+            );
+            simulationResult._computedDailyMinutes = optimalDailyMinutes;
+            totalTimeMinutes = simulationResult.totalGrindingMinutes;
+        }
+    } else {
+        // Continuous calculation path (no aura, existing logic)
+        let remainingExp = totalExpNeeded;
+
+        if (activeEvents.length > 0) {
+            let currentTime = 0;
+            let currentEvents = [...activeEvents];
+
+            while (currentEvents.length > 0 && remainingExp > 0) {
+                const totalEventMultiplier = currentEvents.reduce((sum, e) => sum + e.multiplier, 0);
+                const expRate = baseExpEfficiency * (100 + regularMultiplier + totalEventMultiplier) / (100 + regularMultiplier);
+                const expPerMinute = expRate / 10;
+
+                const nextExpiration = Math.min(...currentEvents.map(e => e.duration));
+                const phaseDuration = nextExpiration - currentTime;
+                const expInPhase = expPerMinute * phaseDuration;
+
+                if (expInPhase >= remainingExp) {
+                    eventPhases.push({
+                        events: currentEvents.map(e => e.name),
+                        multiplier: totalEventMultiplier,
+                        duration: remainingExp / expPerMinute
+                    });
+                    remainingExp = 0;
+                    break;
+                } else {
+                    eventPhases.push({
+                        events: currentEvents.map(e => e.name),
+                        multiplier: totalEventMultiplier,
+                        duration: phaseDuration
+                    });
+                    remainingExp -= expInPhase;
+                    currentTime = nextExpiration;
+                    currentEvents = currentEvents.filter(e => e.duration > currentTime);
+                }
+            }
+        }
+
+        if (remainingExp > 0) {
+            const expPerMinute = regularExpPerTenMin / 10;
+            eventPhases.push({
+                events: [],
+                multiplier: 0,
+                duration: remainingExp / expPerMinute
+            });
+        }
+
+        totalTimeMinutes = eventPhases.reduce((sum, phase) => sum + phase.duration, 0);
     }
 
-    // Calculate total time
-    const totalTimeMinutes = eventPhases.reduce((sum, phase) => sum + phase.duration, 0);
-    const hasEvents = hasCoupon || hasWeather || hasCustom;
+    const hasEvents = hasCoupon || hasCustom || hasAura;
 
     // Calculate percentage of current level progress
     let expPercentage = 0;
@@ -407,62 +718,83 @@ function calculateResults(e) {
     // Show/hide event breakdown with detailed phases (only in advanced mode)
     const eventBreakdown = document.getElementById('eventTimeBreakdown');
     if (currentMode === 'advanced' && hasEvents) {
-        // Clear previous breakdown
         eventBreakdown.innerHTML = '';
 
-        // Display each phase
-        eventPhases.forEach(phase => {
-            if (phase.events.length === 0) {
-                // No events active
-                addBreakdownItem(eventBreakdown, '活動結束後', 0, phase.duration);
-            } else {
-                // Build label from active events
-                const labels = phase.events.map(eventName => {
-                    if (eventName === 'coupon') return getCouponLabel(couponMultiplier);
-                    if (eventName === 'weather') return getWeatherLabel(weatherMultiplier);
-                    if (eventName === 'custom') return '自定義';
-                    return eventName;
-                });
-                const label = labels.join('+');
-                addBreakdownItem(eventBreakdown, label, phase.multiplier, phase.duration);
+        if (simulationResult) {
+            // Day-by-day simulation: display aggregated phases
+            const phaseOrder = ['coupon+custom+aura', 'coupon+aura', 'custom+aura',
+                               'coupon+custom', 'coupon', 'custom', 'aura', 'none'];
+
+            for (const key of phaseOrder) {
+                const minutes = simulationResult.phases[key];
+                if (!minutes || minutes < 0.01) continue;
+                const info = getPhaseDisplayInfo(key, couponMultiplier, auraMultiplier, customMultiplier);
+                addBreakdownItem(eventBreakdown, info.label, info.multiplier, minutes);
             }
-        });
+        } else {
+            // Continuous mode: per-phase display
+            eventPhases.forEach(phase => {
+                if (phase.events.length === 0) {
+                    addBreakdownItem(eventBreakdown, '活動結束後', 0, phase.duration);
+                } else {
+                    const labels = phase.events.map(eventName => {
+                        if (eventName === 'coupon') return getCouponLabel(couponMultiplier);
+                        if (eventName === 'custom') return '自定義';
+                        return eventName;
+                    });
+                    const label = labels.join('+');
+                    addBreakdownItem(eventBreakdown, label, phase.multiplier, phase.duration);
+                }
+            });
+        }
 
         eventBreakdown.classList.remove('hidden');
     } else {
-        eventBreakdown.innerHTML = ''; // Clear old content to prevent stale data from showing
+        eventBreakdown.innerHTML = '';
         eventBreakdown.classList.add('hidden');
     }
 
-    // Calculate grinding schedule if applicable (only in advanced mode)
-    const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
+    // Display schedule result
     const scheduleResultDiv = document.getElementById('scheduleResult');
-    const scheduleLabel = document.getElementById('scheduleLabel');
-    const scheduleValue = document.getElementById('scheduleValue');
+    const scheduleLabelEl = document.getElementById('scheduleLabel');
+    const scheduleValueEl = document.getElementById('scheduleValue');
 
-    if (currentMode === 'advanced' && scheduleMode && scheduleMode.value === 'daily') {
-        const dailyTime = parseFloat(document.getElementById('dailyTime').value) || 0;
-        if (dailyTime > 0) {
-            // Convert to minutes based on current unit
-            const dailyMinutes = currentTimeUnit === 'hour' ? dailyTime * 60 : dailyTime;
-
-            // Calculate days required
-            const daysRequired = Math.ceil(totalTimeMinutes / dailyMinutes);
-            const timeUnit = currentTimeUnit === 'hour' ? '小時' : '分鐘';
-            scheduleLabel.textContent = '所需天數:';
-            scheduleValue.textContent = `${daysRequired} 天 (每日 ${dailyTime} ${timeUnit})`;
-            scheduleResultDiv.classList.remove('hidden');
-        } else {
-            scheduleResultDiv.classList.add('hidden');
-        }
-    } else if (currentMode === 'advanced' && scheduleMode && scheduleMode.value === 'target') {
-        const targetDays = parseInt(document.getElementById('targetDays').value) || 0;
-        if (targetDays > 0) {
-            // Calculate minutes required per day
-            const minutesPerDay = Math.ceil(totalTimeMinutes / targetDays);
-            scheduleLabel.textContent = '每日所需時間:';
-            scheduleValue.textContent = `${minutesPerDay} 分鐘 (共 ${targetDays} 天)`;
-            scheduleResultDiv.classList.remove('hidden');
+    if (currentMode === 'advanced' && isScheduleEnabled && scheduleMode) {
+        if (simulationResult) {
+            // Simulation path: use simulation result for schedule display
+            if (scheduleMode.value === 'daily' && scheduleDailyMinutes > 0) {
+                scheduleLabelEl.textContent = '所需天數:';
+                scheduleValueEl.textContent = `${simulationResult.totalDays} 天 (每日 ${formatTime(scheduleDailyMinutes)})`;
+                scheduleResultDiv.classList.remove('hidden');
+            } else if (scheduleMode.value === 'target' && scheduleTargetDays > 0) {
+                const computedMinutes = Math.ceil(simulationResult._computedDailyMinutes);
+                scheduleLabelEl.textContent = '每日所需時間:';
+                scheduleValueEl.textContent = `${formatTime(computedMinutes)} (共 ${scheduleTargetDays} 天)`;
+                scheduleResultDiv.classList.remove('hidden');
+            } else {
+                scheduleResultDiv.classList.add('hidden');
+            }
+        } else if (scheduleMode.value === 'daily') {
+            // Non-simulation: simple division
+            const dailyMinutes = getDailyGrindingMinutes();
+            if (dailyMinutes > 0) {
+                const daysRequired = Math.ceil(totalTimeMinutes / dailyMinutes);
+                scheduleLabelEl.textContent = '所需天數:';
+                scheduleValueEl.textContent = `${daysRequired} 天 (每日 ${formatTime(dailyMinutes)})`;
+                scheduleResultDiv.classList.remove('hidden');
+            } else {
+                scheduleResultDiv.classList.add('hidden');
+            }
+        } else if (scheduleMode.value === 'target') {
+            const targetDaysVal = parseInt(document.getElementById('targetDays').value) || 0;
+            if (targetDaysVal > 0) {
+                const minutesPerDay = Math.ceil(totalTimeMinutes / targetDaysVal);
+                scheduleLabelEl.textContent = '每日所需時間:';
+                scheduleValueEl.textContent = `${formatTime(minutesPerDay)} (共 ${targetDaysVal} 天)`;
+                scheduleResultDiv.classList.remove('hidden');
+            } else {
+                scheduleResultDiv.classList.add('hidden');
+            }
         } else {
             scheduleResultDiv.classList.add('hidden');
         }
@@ -494,25 +826,6 @@ function toggleUnit(unit) {
     localStorage.setItem('expUnit', unit);
 }
 
-// Toggle time unit mode for daily grinding
-function toggleTimeUnit(unit) {
-    currentTimeUnit = unit;
-
-    const unitHourBtn = document.getElementById('unitHour');
-    const unitMinuteBtn = document.getElementById('unitMinute');
-
-    if (unit === 'hour') {
-        unitHourBtn.classList.add('active');
-        unitMinuteBtn.classList.remove('active');
-    } else {
-        unitHourBtn.classList.remove('active');
-        unitMinuteBtn.classList.add('active');
-    }
-
-    // Save time unit preference
-    localStorage.setItem('timeUnit', unit);
-}
-
 // Save form values to localStorage
 function saveToLocalStorage() {
     // Don't save during initialization to prevent overwriting saved data with empty values
@@ -526,8 +839,8 @@ function saveToLocalStorage() {
     // Get coupon type value
     const couponType = document.querySelector('input[name="couponType"]:checked');
 
-    // Get weather type value
-    const weatherType = document.querySelector('input[name="weatherType"]:checked');
+    // Get aura type value
+    const auraType = document.querySelector('input[name="auraType"]:checked');
 
     // Get schedule mode value
     const scheduleMode = document.querySelector('input[name="scheduleMode"]:checked');
@@ -546,17 +859,17 @@ function saveToLocalStorage() {
         expCoupon: document.getElementById('expCoupon').checked,
         couponType: couponType ? couponType.value : '2x',
         couponCount: document.getElementById('couponCount').value,
-        weatherEvent: document.getElementById('weatherEvent').checked,
-        weatherType: weatherType ? weatherType.value : '2x',
-        weatherTimes: document.getElementById('weatherTimes').value,
         customEvent: document.getElementById('customEvent').checked,
         customBonus: document.getElementById('customBonus').value,
         customDuration: document.getElementById('customDuration').value,
         // Advanced options - grinding schedule
+        enableSchedule: enableScheduleCheckbox.checked,
         scheduleMode: scheduleMode ? scheduleMode.value : 'daily',
-        dailyTime: document.getElementById('dailyTime').value,
-        timeUnit: currentTimeUnit,
-        targetDays: document.getElementById('targetDays').value
+        dailyHours: document.getElementById('dailyHours').value,
+        dailyMinutes: document.getElementById('dailyMinutes').value,
+        targetDays: document.getElementById('targetDays').value,
+        dailyAura: dailyAuraCheckbox.checked,
+        auraType: auraType ? auraType.value : '2x'
     };
 
     localStorage.setItem('artaleCalcData', JSON.stringify(formData));
@@ -608,21 +921,6 @@ function loadFromLocalStorage() {
                 document.getElementById('couponCount').value = formData.couponCount;
             }
 
-            if (formData.weatherEvent !== undefined) {
-                const weatherEventCheckbox = document.getElementById('weatherEvent');
-                weatherEventCheckbox.checked = formData.weatherEvent;
-                toggleEventOptions(weatherEventCheckbox, weatherOptions);
-            }
-
-            if (formData.weatherType !== undefined) {
-                const weatherTypeRadio = document.querySelector(`input[name="weatherType"][value="${formData.weatherType}"]`);
-                if (weatherTypeRadio) weatherTypeRadio.checked = true;
-            }
-
-            if (formData.weatherTimes !== undefined) {
-                document.getElementById('weatherTimes').value = formData.weatherTimes;
-            }
-
             if (formData.customEvent !== undefined) {
                 const customEventCheckbox = document.getElementById('customEvent');
                 customEventCheckbox.checked = formData.customEvent;
@@ -638,24 +936,56 @@ function loadFromLocalStorage() {
             }
 
             // Advanced options - grinding schedule
+            // Backward compatibility: migrate old weatherEvent to dailyAura
+            if (formData.weatherEvent !== undefined && formData.dailyAura === undefined) {
+                formData.dailyAura = formData.weatherEvent;
+                formData.auraType = formData.weatherType || '2x';
+            }
+
+            // Load input values FIRST (before toggles that depend on them)
+            // Backward compatibility: migrate old dailyTime + timeUnit to dailyHours/dailyMinutes
+            if (formData.dailyTime !== undefined && formData.dailyHours === undefined) {
+                const oldTime = parseFloat(formData.dailyTime) || 0;
+                const oldUnit = formData.timeUnit || 'hour';
+                const totalMinutes = oldUnit === 'hour' ? Math.round(oldTime * 60) : Math.round(oldTime);
+                formData.dailyHours = String(Math.floor(totalMinutes / 60));
+                formData.dailyMinutes = String(totalMinutes % 60);
+            }
+
+            if (formData.dailyHours !== undefined) {
+                document.getElementById('dailyHours').value = formData.dailyHours;
+            }
+            if (formData.dailyMinutes !== undefined) {
+                document.getElementById('dailyMinutes').value = formData.dailyMinutes;
+            }
+
+            if (formData.targetDays !== undefined) {
+                document.getElementById('targetDays').value = formData.targetDays;
+            }
+
+            // Daily aura
+            if (formData.dailyAura !== undefined) {
+                dailyAuraCheckbox.checked = formData.dailyAura;
+                toggleEventOptions(dailyAuraCheckbox, auraOptions);
+            }
+
+            if (formData.auraType !== undefined) {
+                const auraTypeRadio = document.querySelector(`input[name="auraType"][value="${formData.auraType}"]`);
+                if (auraTypeRadio) auraTypeRadio.checked = true;
+            }
+
+            // Now apply toggles (which depend on loaded values for warning checks)
+            if (formData.enableSchedule !== undefined) {
+                enableScheduleCheckbox.checked = formData.enableSchedule;
+                toggleScheduleEnabled();
+            }
+
             if (formData.scheduleMode !== undefined) {
                 const scheduleModeRadio = document.querySelector(`input[name="scheduleMode"][value="${formData.scheduleMode}"]`);
                 if (scheduleModeRadio) {
                     scheduleModeRadio.checked = true;
                     toggleScheduleMode();
                 }
-            }
-
-            if (formData.timeUnit !== undefined) {
-                toggleTimeUnit(formData.timeUnit);
-            }
-
-            if (formData.dailyTime !== undefined) {
-                document.getElementById('dailyTime').value = formData.dailyTime;
-            }
-
-            if (formData.targetDays !== undefined) {
-                document.getElementById('targetDays').value = formData.targetDays;
             }
         } catch (error) {
             console.error('Error loading saved data:', error);
@@ -703,10 +1033,6 @@ function initEventListeners() {
         toggleEventOptions(expCouponCheckbox, couponOptions);
     });
 
-    weatherEventCheckbox.addEventListener('change', () => {
-        toggleEventOptions(weatherEventCheckbox, weatherOptions);
-    });
-
     customEventCheckbox.addEventListener('change', () => {
         toggleEventOptions(customEventCheckbox, customOptions);
     });
@@ -733,17 +1059,16 @@ function initEventListeners() {
     });
     document.getElementById('couponCount').addEventListener('input', saveToLocalStorage);
 
-    // Weather related
-    weatherEventCheckbox.addEventListener('change', saveToLocalStorage);
-    document.querySelectorAll('input[name="weatherType"]').forEach(radio => {
-        radio.addEventListener('change', saveToLocalStorage);
-    });
-    document.getElementById('weatherTimes').addEventListener('input', saveToLocalStorage);
-
     // Custom event related
     customEventCheckbox.addEventListener('change', saveToLocalStorage);
     document.getElementById('customBonus').addEventListener('input', saveToLocalStorage);
     document.getElementById('customDuration').addEventListener('input', saveToLocalStorage);
+
+    // Schedule enable checkbox
+    enableScheduleCheckbox.addEventListener('change', () => {
+        toggleScheduleEnabled();
+        saveToLocalStorage();
+    });
 
     // Grinding schedule related
     document.querySelectorAll('input[name="scheduleMode"]').forEach(radio => {
@@ -752,10 +1077,32 @@ function initEventListeners() {
             saveToLocalStorage();
         });
     });
-    document.getElementById('unitHour').addEventListener('click', () => toggleTimeUnit('hour'));
-    document.getElementById('unitMinute').addEventListener('click', () => toggleTimeUnit('minute'));
-    document.getElementById('dailyTime').addEventListener('input', saveToLocalStorage);
-    document.getElementById('targetDays').addEventListener('input', saveToLocalStorage);
+    document.getElementById('dailyHours').addEventListener('input', () => {
+        clampDailyTimeInputs();
+        updateScheduleWarning();
+        updateAuraWarning();
+        saveToLocalStorage();
+    });
+    document.getElementById('dailyMinutes').addEventListener('input', () => {
+        clampDailyTimeInputs();
+        updateScheduleWarning();
+        updateAuraWarning();
+        saveToLocalStorage();
+    });
+    document.getElementById('targetDays').addEventListener('input', () => {
+        updateScheduleWarning();
+        saveToLocalStorage();
+    });
+
+    // Daily aura related
+    dailyAuraCheckbox.addEventListener('change', () => {
+        toggleEventOptions(dailyAuraCheckbox, auraOptions);
+        updateAuraWarning();
+        saveToLocalStorage();
+    });
+    document.querySelectorAll('input[name="auraType"]').forEach(radio => {
+        radio.addEventListener('change', saveToLocalStorage);
+    });
 
     // Save to localStorage when basic inputs change
     currentLevelInput.addEventListener('input', saveToLocalStorage);
@@ -824,10 +1171,12 @@ function initDOMElements() {
     advancedContent = document.getElementById('advancedContent');
     expCouponCheckbox = document.getElementById('expCoupon');
     couponOptions = document.getElementById('couponOptions');
-    weatherEventCheckbox = document.getElementById('weatherEvent');
-    weatherOptions = document.getElementById('weatherOptions');
     customEventCheckbox = document.getElementById('customEvent');
     customOptions = document.getElementById('customOptions');
+    enableScheduleCheckbox = document.getElementById('enableSchedule');
+    scheduleContent = document.getElementById('scheduleContent');
+    dailyAuraCheckbox = document.getElementById('dailyAura');
+    auraOptions = document.getElementById('auraOptions');
     dailyGrindingInput = document.getElementById('dailyGrindingInput');
     targetDaysInput = document.getElementById('targetDaysInput');
 }
@@ -1443,6 +1792,19 @@ function renderHistoryChart() {
             // Keep the record before the displayed slice for EXP gain calculation
             if (allDailyRecords.length > 10) {
                 previousRecord = allDailyRecords[allDailyRecords.length - 11];
+            } else if (allDailyRecords.length > 0) {
+                // All days shown - use the first raw record of the first day as baseline
+                // so the first bar shows EXP gained within that day
+                const firstDay = allDailyRecords[0];
+                const firstDayDate = new Date(firstDay.timestamp);
+                const firstDayKey = `${firstDayDate.getFullYear()}-${firstDayDate.getMonth()}-${firstDayDate.getDate()}`;
+                const firstRawRecord = sortedHistory.find(r => {
+                    const d = new Date(r.timestamp);
+                    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === firstDayKey;
+                });
+                if (firstRawRecord && firstRawRecord.timestamp < firstDay.timestamp) {
+                    previousRecord = firstRawRecord;
+                }
             }
 
             // Show only last 10 days
@@ -1585,7 +1947,8 @@ function renderHistoryChart() {
                 size: 10
             },
             maxRotation: shouldAggregate ? 0 : 45,
-            minRotation: shouldAggregate ? 0 : 45
+            minRotation: shouldAggregate ? 0 : 45,
+            autoSkip: false
         },
         grid: {
             color: inputBorder

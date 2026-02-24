@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.pcgamingwiki.com)",
+      "WebFetch(domain:exilium.moe)",
+      "WebFetch(domain:gfl2.help)",
+      "WebFetch(domain:www.advanceduninstaller.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:exilium.xyz)",
+      "WebFetch(domain:steamcommunity.com)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:games-manuals.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(node -c:*)"
+    ]
+  }
+}
